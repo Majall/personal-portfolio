@@ -97,7 +97,7 @@ export class ContactService implements OnModuleInit {
     const from = this.configService.get<string>('EMAIL_USER');
     const to =
       this.configService.get<string>('NOTIFICATION_EMAIL') ??
-      'kishanthshanth12@gmail.com';
+      'majaalmj7@gmail.com';
 
     // ✅ Escape all user-supplied values before putting them in HTML
     const safeName = escapeHtml(dto.name);
