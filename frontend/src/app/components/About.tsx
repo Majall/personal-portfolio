@@ -55,11 +55,12 @@ const About: React.FC<AboutProps> = ({ profile }) => {
       size: 70,
     },
     {
-      name: "Email",
-      url: `mailto:${profile.email}`,
-      icon: assets.email,
-      size: 50,
-    },
+  name: "Email",
+  url: `https://mail.google.com/mail/?view=cm&fs=1&to=${profile.email}`,
+  icon: assets.email,
+  size: 50,
+}
+    
   ];
 
   return (
@@ -304,7 +305,7 @@ const About: React.FC<AboutProps> = ({ profile }) => {
                     isDarkMode ? "text-gray-300" : "text-gray-700"
                   }`}
                 >
-                  Gamage Recruiters Pvt Ltd
+                  Witsberry (Pvt) Ltd
                 </p>
                 <p
                   className={`text-sm ${
@@ -362,8 +363,8 @@ const About: React.FC<AboutProps> = ({ profile }) => {
           {/* Download Resume Button */}
           <motion.div variants={itemVariants} className="flex gap-4">
             <motion.a
-              href="/Kishanth_Atputharasa_Resume.pdf"
-              download="Kishanth_Atputharasa_Resume.pdf"
+              href="/CV Mern.pdf"
+              download="CV Mern.pdf"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className={`inline-flex items-center gap-3 px-8 py-4 rounded-xl font-bold text-base transition-all duration-300 shadow-lg hover:shadow-2xl ${

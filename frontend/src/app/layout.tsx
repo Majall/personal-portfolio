@@ -14,7 +14,7 @@ const ovo = Ovo({
 });
 
 export const metadata: Metadata = {
-  title: "Portfolio -KISHANTH",
+  title: "Portfolio -MAJAAL",
   description: "",
 };
 

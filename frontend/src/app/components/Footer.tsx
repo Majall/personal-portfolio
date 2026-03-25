@@ -71,7 +71,7 @@ const Footer: React.FC<FooterProps> = ({ profile }) => {
             className={`text-4xl md:text-5xl font-bold font-ovo mb-4 inline-block cursor-pointer`}
           >
             <span className="bg-gradient-to-r from-lime-400 via-emerald-500 to-lime-400 bg-clip-text text-transparent">
-              Kishanth
+              Majall
             </span>
           </motion.h2>
           <p
@@ -276,7 +276,7 @@ const Footer: React.FC<FooterProps> = ({ profile }) => {
               isDarkMode ? "text-gray-500" : "text-gray-600"
             }`}
           >
-            © {new Date().getFullYear()} Kishanth.
+            © {new Date().getFullYear()} Majall.
           </p>
 
           {/* Back to Top */}
