@@ -168,7 +168,7 @@ const Contact: React.FC = () => {
                 <input
                   name="email"
                   type="email"
-                  placeholder="Majall@example.com"
+                  placeholder="majall@example.com"
                   required
                   className={`relative w-full px-5 py-4 rounded-xl border-2 transition-all duration-300 focus:outline-none focus:border-lime-400 focus:scale-[1.02] ${
                     isDarkMode

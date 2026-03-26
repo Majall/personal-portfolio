@@ -363,8 +363,8 @@ const About: React.FC<AboutProps> = ({ profile }) => {
           {/* Download Resume Button */}
           <motion.div variants={itemVariants} className="flex gap-4">
             <motion.a
-              href="/CV Mern.pdf"
-              download="CV Mern.pdf"
+              href="Majaal.CV.pdf"
+              download="Majaal.CV.pdf"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className={`inline-flex items-center gap-3 px-8 py-4 rounded-xl font-bold text-base transition-all duration-300 shadow-lg hover:shadow-2xl ${
