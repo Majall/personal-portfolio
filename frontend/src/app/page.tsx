@@ -1,5 +1,5 @@
 // app/page.tsx
-import { getProfile } from "@/src/services/profile.service";
+import { getProfile } from "../services/profile.service";
 import About from "./components/About";
 import Header from "./components/Header";
 import Contact from "./components/Contact";
