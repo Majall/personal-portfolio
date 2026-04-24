@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { assets } from "@/assets/assets";
-import { sendContact } from "@/src/services/contact.service";
+import { assets } from './../../../assets/assets';
 import { useTheme } from "../context/ThemaeContext";
+import { sendContact } from "../../services/contact.service";
 
 const Contact: React.FC = () => {
   const { isDarkMode } = useTheme();

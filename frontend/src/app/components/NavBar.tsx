@@ -1,8 +1,9 @@
 "use client";
+import { assets } from './../../../assets/assets';
 
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { assets } from "@/assets/assets";
+
 import { useEffect, useState } from "react";
 import { useTheme } from "../context/ThemaeContext";
 
