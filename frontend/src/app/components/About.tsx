@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useTheme } from "../context/ThemaeContext";
-import { assets } from './../../../assets/assets';
+import { assets } from '@/assets/assets';
 
 
 interface Profile {

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { assets } from './../../../assets/assets';
 import { useTheme } from "../context/ThemaeContext";
+import { assets } from '@/assets/assets';
 import { sendContact } from "../../services/contact.service";
 
 const Contact: React.FC = () => {
