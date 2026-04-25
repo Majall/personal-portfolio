@@ -313,7 +313,7 @@ const About: React.FC<AboutProps> = ({ profile }) => {
                     isDarkMode ? "text-gray-400" : "text-gray-600"
                   }`}
                 >
-                  September 2025- March 2026
+                  September 2025- May 2026
                 </p>
               </div>
             </div>
