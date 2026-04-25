@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useTheme } from "../context/ThemaeContext";
-import { assets } from '@/assets/assets';
+import { assets } from './../../../assets/assets';
 
 
 interface Profile {
@@ -241,7 +241,13 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
           transition={{ delay: 1.2 }}
           className="absolute bottom-10 left-1/2 -translate-x-1/2"
         >
-         
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className={`text-2xl ${isDarkMode ? "text-lime-400" : "text-gray-700"}`}
+          >
+            ↓
+          </motion.div>
         </motion.div>
       </div>
     </div>

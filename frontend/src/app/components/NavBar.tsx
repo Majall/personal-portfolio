@@ -1,10 +1,10 @@
 "use client";
-import { assets } from '@/assets/assets';
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useEffect, useState } from "react";
 import { useTheme } from "../context/ThemaeContext";
+import { assets } from './../../../assets/assets';
 
 const NavBar: React.FC = () => {
   const { isDarkMode, toggleDarkMode } = useTheme();
