@@ -1,63 +1,268 @@
 @import "tailwindcss";
 
+/* The dark variant is driven by a class on <html>, set by ThemeProvider.
+   Without this, Tailwind v4 falls back to prefers-color-scheme and every
+   dark:* utility in the app silently does nothing. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  /* 🎨 Colors */
-  --color-light-hover: #fcff4f;
-  --color-dark-hover: #2a004a;
-  --color-dark-theme: #11001f;
+  /* ---- Monochrome core -------------------------------------------------
+     Strictly ink + bone. No accent hue anywhere; emphasis comes from scale,
+     weight and tone reversal instead of colour. */
+  --color-ink-950: #08080a;
+  --color-ink-900: #0b0b0d;
+  --color-ink-800: #141417;
+  --color-ink-700: #1e1e22;
+  --color-ink-600: #2b2b30;
+  --color-ink-500: #45454c;
 
-  /* 🖋️ Fonts */
-  --font-outfit: "Outfit", sans-serif;
-  --font-ovo: "Ovo", serif;
+  --color-bone-50: #faf9f6;
+  --color-bone-100: #f2f1ec;
+  --color-bone-200: #e8e6df;
+  --color-bone-300: #d6d3c9;
+  --color-bone-400: #b3afa3;
 
-  /* 🌑 Shadows */
-  --shadow-black: 4px 4px 0 #000;
-  --shadow-white: 4px 4px 0 #fff;
+  /* ---- Fonts (bound to next/font CSS variables in layout.tsx) ---- */
+  --font-display: var(--font-archivo), "Arial Black", sans-serif;
+  --font-body: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
 
-  --grid-cols-auto: repeat(auto-fit, minmax(200px, 1fr));
+  /* ---- Editorial type scale --------------------------------------------
+     Extreme contrast: huge display, tiny labels, very little between. */
+  --text-label: 0.625rem;
+  --text-label--line-height: 1.1;
+  --text-label--letter-spacing: 0.18em;
 
-}
-/* .dark {
-  --color-dark-theme: #11001f;
-  background-color: var(--color-dark-theme);
-  color: white;
-} */
-.dark-theme {
-  background-color: var(--color-dark-theme);
-  color: white ;
-}
-.light-theme {
-  background-color: white;
-  color: black;
-}
+  --text-display: clamp(2.75rem, 11vw, 9.5rem);
+  --text-display--line-height: 0.86;
+  --text-display--letter-spacing: -0.03em;
 
+  --text-chapter: clamp(2rem, 6.5vw, 5rem);
+  --text-chapter--line-height: 0.9;
+  --text-chapter--letter-spacing: -0.02em;
 
-/* 🎨 Background helpers */
-.lightHover {
-  background-color: var(--color-light-hover);
-}
-
-.darkHover {
-  background-color: var(--color-dark-hover);
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* 🌑 Shadow helpers */
-.shadow-black {
-  box-shadow: var(--shadow-black);
+/* ---------------------------------------------------------------------------
+   Tone system
+
+   The page alternates full-bleed dark and light chapters; that alternation IS
+   the design. A single global theme toggle would fight it, so instead each
+   section declares a *tone* and the toggle swaps which end of the mono scale
+   each tone resolves to. "Dark mode" inverts the rhythm rather than
+   flattening it, so the toggle keeps working and the look survives.
+--------------------------------------------------------------------------- */
+:root {
+  --tone-bg: var(--color-bone-100);
+  --tone-fg: var(--color-ink-900);
+  --tone-muted: var(--color-ink-500);
+  --tone-line: rgb(11 11 13 / 0.14);
+  --tone-raise: rgb(255 255 255 / 0.65);
+  color-scheme: light;
 }
 
-.shadow-white {
-  box-shadow: var(--shadow-white);
+.dark {
+  color-scheme: dark;
 }
 
-/* 🖋️ Font utilities */
-.font-ovo {
-  font-family: var(--font-ovo);
+[data-tone="ink"] {
+  --tone-bg: var(--color-ink-900);
+  --tone-fg: var(--color-bone-100);
+  --tone-muted: var(--color-bone-400);
+  --tone-line: rgb(242 241 236 / 0.16);
+  --tone-raise: rgb(255 255 255 / 0.05);
+  color-scheme: dark;
 }
 
-.font-outfit {
-  font-family: var(--font-outfit);
+[data-tone="bone"] {
+  --tone-bg: var(--color-bone-100);
+  --tone-fg: var(--color-ink-900);
+  --tone-muted: var(--color-ink-500);
+  --tone-line: rgb(11 11 13 / 0.14);
+  --tone-raise: rgb(255 255 255 / 0.65);
+  color-scheme: light;
 }
+
+/* In dark mode every tone collapses toward ink, keeping the alternation
+   legible as a subtle step rather than a hard flip to white. */
+.dark [data-tone="bone"] {
+  --tone-bg: var(--color-ink-800);
+  --tone-fg: var(--color-bone-100);
+  --tone-muted: var(--color-bone-400);
+  --tone-line: rgb(242 241 236 / 0.14);
+  --tone-raise: rgb(255 255 255 / 0.04);
+  color-scheme: dark;
+}
+
+.dark [data-tone="ink"] {
+  --tone-bg: var(--color-ink-950);
+  --tone-fg: var(--color-bone-100);
+  --tone-muted: var(--color-bone-400);
+  --tone-line: rgb(242 241 236 / 0.14);
+  --tone-raise: rgb(255 255 255 / 0.05);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--color-bone-100);
+  }
+
+  html.dark {
+    background-color: var(--color-ink-950);
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: var(--color-bone-100);
+    color: var(--color-ink-900);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .dark body {
+    background-color: var(--color-ink-950);
+    color: var(--color-bone-100);
+  }
+
+  /* Visible keyboard focus on every tone, since there is no accent colour
+     to fall back on. */
+  :focus-visible {
+    outline: 2px solid var(--tone-fg);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--tone-fg);
+    color: var(--tone-bg);
+  }
+}
+
+@layer components {
+  /* A full-bleed chapter that paints itself from the active tone. */
+  .tone-surface {
+    background-color: var(--tone-bg);
+    color: var(--tone-fg);
+  }
+
+  .text-muted {
+    color: var(--tone-muted);
+  }
+
+  .rule {
+    border-color: var(--tone-line);
+  }
+
+  .label {
+    font-family: var(--font-mono);
+    font-size: var(--text-label);
+    line-height: 1.1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .display {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    line-height: 0.86;
+  }
+
+  /* Metallic headline fill. Falls back to a solid tone colour where
+     background-clip on text is unsupported. */
+  .chrome {
+    color: var(--tone-fg);
+  }
+
+  @supports (-webkit-background-clip: text) or (background-clip: text) {
+    .chrome {
+      background-image: linear-gradient(
+        178deg,
+        var(--tone-fg) 0%,
+        var(--tone-fg) 38%,
+        var(--tone-muted) 54%,
+        var(--tone-fg) 72%,
+        var(--tone-fg) 100%
+      );
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+  }
+
+  /* Oversized ghost words that drift behind chapter content. Decorative
+     only — always paired with aria-hidden in the markup. */
+  .ghost-word {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    color: var(--tone-fg);
+    opacity: 0.045;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+    letter-spacing: -0.02em;
+  }
+
+  .hairline-capsule {
+    border: 1px solid var(--tone-line);
+    background: var(--tone-raise);
+    backdrop-filter: blur(12px);
+  }
+
+  /* Seamless marquee for the tech strip. The track holds two identical
+     copies of the list, so translating by exactly -50% lands the second
+     copy where the first began and the loop never shows a seam.
+     Duration is set inline by the component. */
+  .marquee-track {
+    animation-name: marquee;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    will-change: transform;
+  }
+
+  @keyframes marquee {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion
+
+   Framer Motion is gated per-component with useReducedMotion, but this is the
+   backstop for CSS transitions, the smooth-scroll behaviour, and any marquee
+   or drift that is driven purely by stylesheet animation.
+--------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Utility retained from the previous stylesheet: a few layouts still use it. */
 .grid-cols-auto {
-  grid-template-columns: var(--grid-cols-auto);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* Hide scrollbars on the horizontal drag rails without disabling scrolling. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

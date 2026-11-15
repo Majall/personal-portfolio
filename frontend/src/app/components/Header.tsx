@@ -1,256 +1,164 @@
 "use client";
 
 import Image from "next/image";
-import { motion } from "framer-motion";
-import { useTheme } from "../context/ThemaeContext";
-import { assets } from '../../../assets/assets';
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
+import { Container } from "./ui/Section";
+import { TextRoll } from "./ui/Motion";
+import { hero, profile, ui } from "../../data/content";
 
+const EASE = [0.22, 1, 0.36, 1] as const;
 
-interface Profile {
-  name: string;
-  bio: string;
-  role: string;
-  profilePic: string;
-}
+const Header: React.FC = () => {
+  const reduce = useReducedMotion();
+  const ref = useRef<HTMLElement>(null);
 
-interface HeaderProps {
-  profile: Profile;
-}
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start start", "end start"],
+  });
 
-const Header: React.FC<HeaderProps> = ({ profile }) => {
-  const { isDarkMode } = useTheme();
+  /* Parallax: the headline drifts up faster than the portrait, so the two
+     layers separate as you scroll out of the hero. */
+  const titleY = useTransform(scrollYProgress, [0, 1], ["0%", "-38%"]);
+  const portraitY = useTransform(scrollYProgress, [0, 1], ["0%", "-14%"]);
+  const fade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   return (
-    <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 pointer-events-none">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            rotate: [0, 90, 0],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-          className={`absolute top-20 left-20 w-72 h-72 rounded-full blur-3xl opacity-20 ${
-            isDarkMode ? "bg-lime-500" : "bg-lime-300"
-          }`}
-        />
-        <motion.div
-          animate={{
-            scale: [1.2, 1, 1.2],
-            rotate: [90, 0, 90],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-          className={`absolute bottom-20 right-20 w-96 h-96 rounded-full blur-3xl opacity-20 ${
-            isDarkMode ? "bg-purple-500" : "bg-purple-300"
-          }`}
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            x: [0, 50, 0],
-            y: [0, -50, 0],
-          }}
-          transition={{
-            duration: 15,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full blur-3xl opacity-10 ${
-            isDarkMode ? "bg-emerald-500" : "bg-emerald-300"
-          }`}
-        />
-      </div>
-
-      {/* Main Content */}
-      <div className="relative z-10 w-11/12 max-w-4xl text-center mx-auto px-4">
-        {/* Profile Image with Glow */}
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{
-            duration: 0.8,
-            type: "spring",
-            stiffness: 100,
-          }}
-          className="relative inline-block mb-6"
-        >
-          {/* Animated Ring */}
-          <motion.div
-            animate={{
-              rotate: 360,
-              scale: [1, 1.1, 1],
-            }}
-            transition={{
-              rotate: { duration: 20, repeat: Infinity, ease: "linear" },
-              scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-            }}
-            className="absolute inset-0 rounded-full bg-gradient-to-r from-lime-400 via-emerald-500 to-purple-500 blur-xl opacity-60"
-            style={{
-              width: "140px",
-              height: "140px",
-              left: "-10px",
-              top: "-10px",
-            }}
-          />
-
-          {/* Profile Picture */}
-          <motion.div whileHover={{ scale: 1.05 }} className="relative">
-            <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border-4 border-white dark:border-gray-800 shadow-2xl mt-14">
-              <Image
-                src={assets.user_image}
-                alt={profile.name}
-                width={135}
-                height={130}
-                className="object-cover"
-              />
-            </div>
-          </motion.div>
-        </motion.div>
-
-        {/* Greeting */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+    <header
+      ref={ref}
+      id="top"
+      data-tone="bone"
+      className="tone-surface relative flex min-h-[100svh] w-full flex-col justify-between overflow-hidden pt-24 pb-8"
+    >
+      <Container className="relative z-10 flex flex-1 flex-col justify-center">
+        {/* Name, set small above the headline — the headline itself states the
+            discipline, which is what a hiring manager is scanning for. */}
+        <motion.p
+          initial={reduce ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
+          transition={{ duration: 0.7, ease: EASE }}
+          style={reduce ? undefined : { opacity: fade }}
+          className="label relative z-10 mb-5 text-muted"
         >
-          <motion.h3
-            className={`text-lg md:text-xl font-semibold mb-3 ${
-              isDarkMode ? "text-gray-300" : "text-gray-700"
-            }`}
-          >
-            Hi! I'm{" "}
-            <span className="bg-gradient-to-r from-lime-400 to-emerald-500 bg-clip-text text-transparent font-bold">
-              {profile.name}
-            </span>{" "}
-            <motion.span
-              animate={{ rotate: [0, 14, -8, 14, 0] }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                repeatDelay: 1,
-              }}
-              className="inline-block"
-            >
-              👋
-            </motion.span>
-          </motion.h3>
-        </motion.div>
+          {profile.name} — {profile.tagline}
+        </motion.p>
 
-        {/* Role/Title */}
+        {/* Oversized headline. The portrait below overlaps it. */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
+          style={reduce ? undefined : { y: titleY, opacity: fade }}
+          className="relative z-10 pointer-events-none"
         >
-          <h1
-            className={`text-3xl sm:text-4xl md:text-5xl font-bold font-ovo mb-4 leading-tight ${
-              isDarkMode ? "text-white" : "text-gray-900"
-            }`}
-          >
-            <span className="bg-gradient-to-r from-lime-400 to-emerald-500 bg-clip-text text-transparent">
-              {profile.role}
+          <h1 className="display chrome text-display">
+            <span className="sr-only">
+              {profile.name} — {profile.title}
+            </span>
+            <span aria-hidden="true" className="block">
+              {hero.headline.map((word, i) => (
+                <span
+                  key={`${word}-${i}`}
+                  className="inline-block overflow-hidden align-bottom"
+                >
+                  <motion.span
+                    className="inline-block"
+                    initial={reduce ? false : { y: "110%" }}
+                    animate={{ y: "0%" }}
+                    transition={{ duration: 1, delay: 0.1 + i * 0.09, ease: EASE }}
+                  >
+                    {word}
+                    {i < hero.headline.length - 1 ? " " : ""}
+                  </motion.span>
+                </span>
+              ))}
             </span>
           </h1>
         </motion.div>
 
-        {/* Bio */}
+        {/* Portrait, pulled up over the headline's baseline */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7, duration: 0.6 }}
+          style={reduce ? undefined : { y: portraitY }}
+          initial={reduce ? false : { opacity: 0, scale: 1.04 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1.2, delay: 0.25, ease: EASE }}
+          className="relative z-20 mx-auto -mt-[7vw] w-[58%] max-w-[380px] sm:w-[42%] md:-mt-[6vw] md:w-[34%]"
         >
-          <p
-            className={`text-sm md:text-base max-w-2xl mx-auto leading-relaxed font-ovo mb-6 ${
-              isDarkMode ? "text-gray-400" : "text-gray-600"
-            }`}
-          >
-            {profile.bio}
-          </p>
-        </motion.div>
-
-        {/* CTA Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9, duration: 0.6 }}
-          className="flex flex-wrap items-center justify-center gap-4 mb-8"
-        >
-          <motion.a
-            href="#contact"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`group relative px-8 py-4 rounded-full font-bold text-lg overflow-hidden ${
-              isDarkMode
-                ? "bg-gradient-to-r from-lime-400 to-emerald-500 text-black"
-                : "bg-gradient-to-r from-gray-900 to-gray-800 text-white"
-            } shadow-lg hover:shadow-2xl transition-shadow duration-300`}
-          >
-            <span className="relative z-10 flex items-center gap-2">
-              Get In Touch
-              <svg
-                className="w-5 h-5 transform group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={3}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                />
-              </svg>
-            </span>
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-              animate={{ x: ["-200%", "200%"] }}
-              transition={{
-                repeat: Infinity,
-                duration: 3,
-                ease: "linear",
-              }}
+          {profile.profilePic ? (
+            <Image
+              src={profile.profilePic}
+              alt={`Portrait of ${profile.name}`}
+              width={760}
+              height={950}
+              priority
+              sizes="(max-width: 640px) 58vw, (max-width: 768px) 42vw, 34vw"
+              className="h-auto w-full object-contain grayscale contrast-[1.08]"
             />
-          </motion.a>
-
-          <motion.a
-            href="#myWork"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`px-8 py-4 rounded-full font-bold text-lg backdrop-blur-sm transition-all duration-300 ${
-              isDarkMode
-                ? "bg-white/10 text-white border-2 border-white/20 hover:bg-white/20 hover:border-lime-400"
-                : "bg-black/5 text-gray-900 border-2 border-gray-300 hover:bg-black/10 hover:border-lime-400"
-            }`}
-          >
-            View My Work
-          </motion.a>
+          ) : (
+            <div className="flex aspect-[4/5] w-full items-center justify-center border rule">
+              <span className="label text-muted">{ui.portraitMissing}</span>
+            </div>
+          )}
         </motion.div>
 
-        {/* Scroll Indicator */}
+        {/* Corner metadata, set small and wide against the display type */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.2 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2"
+          style={reduce ? undefined : { opacity: fade }}
+          className="relative z-30 -mt-10 flex flex-col gap-8 sm:-mt-16 md:flex-row md:items-end md:justify-between"
         >
           <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className={`text-2xl ${isDarkMode ? "text-lime-400" : "text-gray-700"}`}
+            initial={reduce ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.7, ease: EASE }}
+            className="max-w-[20rem]"
           >
-            ↓
+            <p className="label text-muted">{profile.title}</p>
+            <p className="label mt-2 text-muted">{profile.location}</p>
+          </motion.div>
+
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.82, ease: EASE }}
+            className="max-w-sm md:text-right"
+          >
+            <p className="text-sm leading-relaxed text-muted">{hero.intro}</p>
+            <div className="mt-5 flex flex-wrap gap-2 md:justify-end">
+              <a
+                href={hero.primaryCta.href}
+                className="group rounded-full bg-ink-900 px-6 py-3 label text-bone-100 transition-opacity hover:opacity-85 dark:bg-bone-100 dark:text-ink-900"
+              >
+                <TextRoll label={hero.primaryCta.label} />
+              </a>
+              <a
+                href={hero.secondaryCta.href}
+                className="group rounded-full border px-6 py-3 label rule transition-colors hover:border-current"
+              >
+                <TextRoll label={hero.secondaryCta.label} />
+              </a>
+            </div>
           </motion.div>
         </motion.div>
-      </div>
-    </div>
+      </Container>
+
+      {/* Scroll cue */}
+      <Container className="relative z-10">
+        <motion.div
+          initial={reduce ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2, duration: 0.6 }}
+          className="flex items-center justify-between border-t pt-4 rule"
+        >
+          <span className="label text-muted">{hero.scrollCue}</span>
+          <motion.span
+            aria-hidden="true"
+            animate={reduce ? undefined : { y: [0, 5, 0] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+            className="label text-muted"
+          >
+            ↓
+          </motion.span>
+        </motion.div>
+      </Container>
+    </header>
   );
 };
 
