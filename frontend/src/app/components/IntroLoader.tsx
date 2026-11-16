@@ -184,6 +184,17 @@ export default function IntroLoader() {
     return () => clearInterval(id);
   }, [phase]);
 
+  /* Lift the pre-paint curtain (set by the inline script in layout.tsx) once
+     the loader itself is covering the page, or once it is certain no intro
+     will play. The hydration render reports "already played" regardless of
+     the truth, so the real storage value is checked here rather than
+     `hasPlayed` — otherwise the curtain would drop one frame too early. */
+  useEffect(() => {
+    if (playing || reduce || hasPlayedOnClient()) {
+      delete document.documentElement.dataset.intro;
+    }
+  }, [playing, reduce]);
+
   /* Hold the page still while the loader is up, and always hand scrolling
      back on unmount — otherwise a navigation mid-intro would leave the body
      locked. */

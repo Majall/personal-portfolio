@@ -700,6 +700,34 @@ export const game = {
     "A decorative brick-breaker game spelling HELLO WORLD. Entirely optional — nothing on this page depends on playing it.",
 };
 
+/* ------------------------------------------------------------------- chat -- */
+
+/* Copy for the floating assistant. What the bot actually knows is not written
+   here: its prompt is generated from the rest of this file in
+   src/lib/chatPrompt.ts, so it follows every edit made above. */
+export const chat = {
+  title: `Ask about ${profile.name}`,
+  subtitle: "AI assistant · Online",
+  /** What the robot says in its speech bubble shortly after the page loads. */
+  bubble: `Hi! I'm ${profile.name}'s assistant. Tap me and ask anything about their work.`,
+  bubbleStatus: "Online · Tap to chat",
+  openLabel: "Open chat assistant",
+  closeLabel: "Close chat assistant",
+  greeting: `Hi! I'm an AI assistant that can answer questions about ${profile.name}: experience, skills, projects and availability.`,
+  suggestions: [
+    "What experience does Majall have?",
+    "Which networking skills?",
+    "What projects have they built?",
+    "Is Majall available for work?",
+  ],
+  inputLabel: "Your question",
+  placeholder: `Ask about ${profile.name}…`,
+  sendLabel: "Send",
+  typingLabel: "Typing…",
+  errorLabel: "Couldn't get a reply. Please try again.",
+  rateLimitedLabel: "Too many messages. Give it a minute and try again.",
+};
+
 /* ----------------------------------------------------------------- footer -- */
 
 export const footer = {

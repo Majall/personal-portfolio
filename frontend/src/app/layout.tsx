@@ -8,6 +8,7 @@ import {
 import "./globals.css";
 import IntroLoader from "./components/IntroLoader";
 import SmoothScroll from "./components/SmoothScroll";
+import ChatBot from "./components/ChatBot";
 import { meta, ui } from "../data/content";
 
 /* Applied before first paint, so a visitor who chose light never sees a dark
@@ -20,6 +21,13 @@ import { meta, ui } from "../data/content";
    try/catch, because localStorage throws outright in some privacy modes and
    an exception here would block the rest of the document. */
 const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(!t){t=window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"}if(t==="light"){document.documentElement.dataset.theme="light"}}catch(e){}})();`;
+
+/* Draws a curtain over the page before first paint when the intro is about to
+   play (not yet seen this session, motion allowed), so the hero never shows
+   in the gap before the loader hydrates. IntroLoader lifts it once it is on
+   screen; the timeout is a failsafe so a hydration failure cannot leave the
+   page covered. The storage key must match STORAGE_KEY in IntroLoader. */
+const INTRO_SCRIPT = `(function(){try{var d=document.documentElement;if(sessionStorage.getItem("intro-played")!=="1"&&!window.matchMedia("(prefers-reduced-motion: reduce)").matches){d.dataset.intro="pending";setTimeout(function(){delete d.dataset.intro},6000)}}catch(e){}})();`;
 
 /* Body face. */
 const inter = Inter({
@@ -79,6 +87,7 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
       </head>
       <body className="overflow-x-hidden bg-ink text-bone">
         <a
@@ -91,6 +100,7 @@ export default function RootLayout({
         <SmoothScroll />
         <IntroLoader />
         {children}
+        <ChatBot />
 
         {/* Film grain sits above the page and below the loader. */}
         <div className="grain" aria-hidden="true" />

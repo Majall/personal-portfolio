@@ -208,8 +208,20 @@ html[data-theme="light"] :is(a, button).rounded-full.bg-bone[class*="px-"] {
   box-shadow: 0 10px 24px -12px rgb(198 47 62 / 0.55);
 }
 
+/* The open service row inverts against the page rather than going crimson: a
+   full-bleed block of saturated red overpowers either theme. On dark it is a
+   warm off-white panel with near-black type; on light, a deep plum-black
+   panel with ivory type. The token is redefined on the panel itself rather
+   than on the theme, so everything else that reads `cream` as the accent
+   (the chat robot) keeps the crimson, while the row and the button label
+   inside it follow along. */
+.bg-cream {
+  --color-cream: #f3eef0;
+}
+
 html[data-theme="light"] .bg-cream {
-  box-shadow: 0 22px 48px -26px rgb(198 47 62 / 0.6);
+  --color-cream: #2a141d;
+  box-shadow: 0 22px 48px -26px rgb(42 20 29 / 0.55);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -382,6 +394,21 @@ html[data-theme="light"] .bg-cream {
      It sits above the content but takes no pointer events, so it never
      intercepts a click. The blend mode flips with the theme: a multiplied
      grain is invisible on black, and a screened one is invisible on white. */
+  /* Curtain for the gap before the intro. The server cannot know whether the
+     intro has played, so it renders the page without the loader; without
+     this, the hero is visible until React hydrates and the loader mounts over
+     it. An inline script in <head> sets data-intro before first paint, and
+     the loader (z-90, same colour) removes it once it is on screen. */
+  /* ::after, not ::before — the light theme's aurora already owns
+     body::before. */
+  html[data-intro="pending"] body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 89;
+    background-color: var(--color-ink);
+  }
+
   .grain {
     position: fixed;
     inset: 0;
@@ -493,4 +520,213 @@ html[data-theme="light"] .bg-cream {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Chat robot
+
+   Motion for the mascot in components/ChatRobot.tsx. Each part runs on its
+   own period so the loops drift against each other and the robot never
+   visibly "restarts". Origins are in the SVG's own user units (SVG elements
+   resolve transform-origin against the viewBox), so they hold at any size.
+   The reduced-motion block above stills all of it.
+--------------------------------------------------------------------------- */
+.robot-float {
+  animation: robot-float 3.4s ease-in-out infinite alternate;
+}
+
+.robot-wave {
+  transform-origin: 80px 91px;
+  animation: robot-wave 2.6s ease-in-out infinite;
+}
+
+/* Hovering or focusing the launcher makes it wave properly. */
+.robot-launcher:hover .robot-wave,
+.robot-launcher:focus-visible .robot-wave {
+  animation-duration: 0.7s;
+}
+
+.robot-head {
+  transform-origin: 60px 78px;
+  animation: robot-nod 5.2s ease-in-out infinite;
+}
+
+.robot-head-thinking {
+  animation: robot-think 1.6s ease-in-out infinite alternate;
+}
+
+.robot-blink {
+  transform-origin: 60px 48px;
+  animation: robot-blink 4.6s linear infinite;
+}
+
+.robot-ring {
+  transform-origin: 60px 125px;
+  animation: robot-ring 1.7s ease-in-out infinite alternate;
+}
+
+.robot-dot {
+  animation: robot-dot 0.9s ease-in-out infinite;
+}
+
+/* The cape sways from the shoulders and the chest core breathes. */
+.robot-cape {
+  transform-origin: 60px 86px;
+  animation: robot-cape 3s ease-in-out infinite alternate;
+}
+
+.robot-core {
+  animation: robot-core 2.2s ease-in-out infinite alternate;
+}
+
+.robot-dancing .robot-cape {
+  animation-duration: 0.6s;
+}
+
+@keyframes robot-cape {
+  from {
+    transform: skewX(-4deg) scaleX(0.97);
+  }
+  to {
+    transform: skewX(4deg) scaleX(1.04);
+  }
+}
+
+@keyframes robot-core {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---- Dancing: while the chat is open ----
+   Deliberately small. The robot sits next to text someone is reading, so
+   this is a sway and a bounce of a few pixels, not a routine: the body rocks
+   from the hover ring, both arms pump in time, and the head keeps the beat.
+   The arms run at twice the body tempo so they land on every bounce. */
+.robot-dancing .robot-float {
+  transform-origin: 60px 122px;
+  animation: robot-dance 1.2s ease-in-out infinite;
+}
+
+.robot-dancing .robot-wave {
+  animation: robot-wave 0.6s ease-in-out infinite;
+}
+
+.robot-dancing .robot-rest {
+  transform-origin: 38px 88px;
+  animation: robot-rest-pump 0.6s ease-in-out infinite alternate;
+}
+
+/* The thinking pose keeps its own head tilt, so a pending reply still reads. */
+.robot-dancing .robot-head:not(.robot-head-thinking) {
+  animation: robot-nod 1.2s ease-in-out infinite;
+}
+
+@keyframes robot-dance {
+  0%,
+  100% {
+    transform: rotate(-5deg) translateY(0);
+  }
+  25%,
+  75% {
+    transform: rotate(0deg) translateY(-4px);
+  }
+  50% {
+    transform: rotate(5deg) translateY(0);
+  }
+}
+
+@keyframes robot-rest-pump {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(26deg);
+  }
+}
+
+/* The red light it throws on the page, taken from the theme's glow colour. */
+.robot-glow {
+  filter: drop-shadow(0 0 10px rgb(var(--glow) / 0.55))
+    drop-shadow(0 6px 10px rgb(0 0 0 / 0.35));
+}
+
+/* Typing dots in the chat panel. */
+.chat-dot {
+  animation: robot-dot 0.9s ease-in-out infinite;
+}
+
+@keyframes robot-float {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes robot-wave {
+  0%,
+  100% {
+    transform: rotate(4deg);
+  }
+  50% {
+    transform: rotate(-16deg);
+  }
+}
+
+@keyframes robot-nod {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes robot-think {
+  from {
+    transform: rotate(-7deg);
+  }
+  to {
+    transform: rotate(-2deg);
+  }
+}
+
+@keyframes robot-blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.12);
+  }
+}
+
+@keyframes robot-ring {
+  from {
+    opacity: 0.4;
+    transform: scaleX(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1.08);
+  }
+}
+
+@keyframes robot-dot {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
 }
