@@ -35,6 +35,8 @@ interface ChatRobotProps {
   className?: string;
   /** Swaps the eyes for three bouncing dots while a reply loads. */
   thinking?: boolean;
+  /** Moves the mouth and brightens the eyes while a reply is read aloud. */
+  speaking?: boolean;
   /** A small side-to-side groove with both arms, used while the chat is open. */
   dancing?: boolean;
   /** Head and shoulders only, for the small avatar in the panel header. */
@@ -44,6 +46,7 @@ interface ChatRobotProps {
 export default function ChatRobot({
   className,
   thinking = false,
+  speaking = false,
   dancing = false,
   bust = false,
 }: ChatRobotProps) {
@@ -228,12 +231,25 @@ export default function ChatRobot({
                 <path d="M82 45 L65 50 L67 55.5 L79 52.5 Z" />
               </g>
               {/* Mouth grille. */}
-              <path
-                d="M54 63.5 L66 63.5"
-                stroke={ARMOUR_LIGHT}
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
+              {speaking ? (
+                <rect
+                  className="robot-mouth"
+                  x="54"
+                  y="61.5"
+                  width="12"
+                  height="4"
+                  rx="2"
+                  fill={EYE}
+                  filter={`url(#${glow})`}
+                />
+              ) : (
+                <path
+                  d="M54 63.5 L66 63.5"
+                  stroke={ARMOUR_LIGHT}
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              )}
             </>
           )}
         </g>
