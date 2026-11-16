@@ -33,6 +33,12 @@ export interface Profile {
   availability: string;
   /** Remote image — the hostname is allow-listed in next.config.ts. */
   profilePic: string;
+  /**
+   * Background-removed PNG under /public, shown full-height in the hero.
+   * page.tsx checks it exists before passing it down, so a missing file
+   * degrades to a type-only hero rather than a broken image.
+   */
+  portrait: string;
 }
 
 export const profile: Profile = {
@@ -50,6 +56,7 @@ export const profile: Profile = {
     "Available for work: shift work, night shifts and on-call. Open to relocating to Colombo.",
   profilePic:
     "https://res.cloudinary.com/df8ohajqt/image/upload/v1774592351/portfolio/profiles/ctiqsurjrfuecm1xjk2h.jpg",
+  portrait: "/portrait.png",
 };
 
 /* ------------------------------------------------------------------- meta -- */
@@ -69,24 +76,47 @@ export interface NavLink {
 }
 
 export const nav: NavLink[] = [
-  { name: "Index", href: "#top", id: "top" },
+  { name: "Home", href: "#home", id: "home" },
   { name: "About", href: "#about", id: "about" },
-  { name: "Services", href: "#services", id: "services" },
+  { name: "Service", href: "#service", id: "service" },
   { name: "Labs", href: "#labs", id: "labs" },
-  { name: "Work", href: "#work", id: "work" },
+  { name: "Projects", href: "#project", id: "project" },
+  { name: "Experience", href: "#experience", id: "experience" },
   { name: "Contact", href: "#contact", id: "contact" },
 ];
+
+/* ----------------------------------------------------------------- loader -- */
+
+export const loader = {
+  /** Revealed letter by letter, left to right. */
+  name: "MAJALL",
+  /** Replaces the name on the final beat. */
+  word: "PORTFOLIO",
+};
 
 /* ------------------------------------------------------------------- hero -- */
 
 export const hero = {
-  /** Separate words so each can clip and rise on its own in Header. */
-  headline: ["IT", "Support", "Engineer."],
+  /**
+   * The single oversized chrome word behind the portrait. It is deliberately
+   * NOT the job title: the title is set beneath it in `roleLead` /
+   * `roleAccent`, so the two do not repeat each other.
+   */
+  word: "PORTFOLIO",
+
+  /** The role, split so the last word can take the italic serif. */
+  roleLead: "IT Support",
+  roleAccent: "Engineer",
+
+  /** Announced in place of the decorative word for assistive tech. */
+  srHeadline: "Majall — IT Support Engineer",
+
   intro:
     "HNDIT graduate moving into IT Support and IT Operations. Methodical troubleshooter across Windows, networking, servers and databases.",
-  primaryCta: { label: "See what I can do", href: "#services" },
-  secondaryCta: { label: "Get in touch", href: "#contact" },
+  contactCta: { label: "Contact", href: "#contact" },
+  scrollCueLabel: "Scroll down",
   scrollCue: "Scroll to begin",
+  resumeLabel: "Resume",
 };
 
 /* ------------------------------------------------------------------ about -- */
@@ -99,13 +129,17 @@ export interface Highlight {
 export const about = {
   eyebrow: "Background & Foundations",
   index: "01",
-  heading: "Where I've been",
+  /* Chapter headings are set as a heavy uppercase lead plus one italic serif
+     accent word, so `heading` and `headingAccent` are rendered in different
+     faces rather than concatenated. */
+  heading: "Where I've",
+  headingAccent: "been",
 
-  bio: "HNDIT graduate moving into IT Support and IT Operations, with six months of professional technical experience diagnosing faults and resolving application, server and database issues. I have practical knowledge of Windows setup and configuration, PC hardware and software troubleshooting, and networking: TCP/IP, subnetting, VLANs, switching, routing, DNS, DHCP, NAT, ACLs and Wi-Fi, built through structured Cisco CCNA 200-301 study and hands-on labs in Cisco Packet Tracer. I'm a methodical troubleshooter, developing my PowerShell and Python automation skills.",
+  bio: "HNDIT graduate moving into IT Support and IT Operations, with one year of professional technical experience diagnosing faults and resolving application, server and database issues. I have practical knowledge of Windows setup and configuration, PC hardware and software troubleshooting, and networking: TCP/IP, subnetting, VLANs, switching, routing, DNS, DHCP, NAT, ACLs and Wi-Fi, built through structured Cisco CCNA 200-301 study and hands-on labs in Cisco Packet Tracer. I'm a methodical troubleshooter, developing my PowerShell and Python automation skills.",
 
   /* Three stat items. `value` is set large, `label` small underneath. */
   highlights: [
-    { value: "6 months", label: "Professional experience" },
+    { value: "1 year", label: "Professional experience" },
     { value: "CCNA 200-301", label: "In progress" },
     { value: "HNDIT", label: "Graduate — SLIATE" },
   ] satisfies Highlight[],
@@ -129,8 +163,8 @@ export const experience: Experience[] = [
   {
     role: "Full Stack Developer Intern",
     company: "Witsberry (Pvt) Ltd",
-    type: "Remote · Full-time internship",
-    dates: "September 2025 – March 2026",
+    type: "On-site · Full-time internship",
+    dates: "September 2025 – November 2026",
     points: [
       "Diagnosed and resolved technical faults across applications, servers and databases, from first report to verified resolution.",
       "Investigated and debugged system problems, finding root causes and applying fixes that improved reliability and reduced recurring incidents.",
@@ -138,12 +172,20 @@ export const experience: Experience[] = [
       "Supported deployment, configuration and troubleshooting across Linux and cloud-hosted servers.",
       "Used Git and GitHub for version control and change tracking in a professional team.",
       "Wrote technical notes and documentation that supported troubleshooting and knowledge sharing.",
-      "Worked fully remotely with a distributed team, communicating findings clearly in English with minimal supervision.",
+      "Worked on-site with the team, communicating findings clearly in English with minimal supervision.",
     ],
   },
 ];
 
-export const experienceSection = { label: "Experience" };
+export const experienceSection = {
+  label: "Experience",
+  eyebrow: "Professional Record",
+  index: "05",
+  heading: "Where I've",
+  headingAccent: "worked",
+  note: "One year of full-time technical work, on-site with the team.",
+  ghostWord: "Exp",
+};
 
 /* -------------------------------------------------------------- education -- */
 
@@ -289,9 +331,14 @@ export const services: Service[] = [
 export const servicesSection = {
   eyebrow: "Capabilities",
   index: "02",
-  heading: "What I can do",
+  heading: "What I can",
+  headingAccent: "do",
   note: "Six areas I support, from the endpoint on someone's desk to the database behind it.",
   ghostWord: "Support",
+  /** Printed inside the one expanded row. */
+  viewProjectsLabel: "View projects",
+  expandLabel: "Expand",
+  collapseLabel: "Collapse",
 };
 
 /* ----------------------------------------------------------------- skills -- */
@@ -365,6 +412,14 @@ export const skillsSection = {
 /** Flat list for the scrolling tech strip below the hero. */
 export const techStrip: string[] = skillGroups.flatMap((group) => group.items);
 
+/* The strip renders one marquee row per group, alternating direction. Each
+   row is its own discipline, so the rows stay legible as categories rather
+   than becoming one undifferentiated scroll of words. */
+export const stackSection = {
+  label: "The stack",
+  note: "Everything I work with day to day.",
+};
+
 /* ------------------------------------------------------------------- labs -- */
 
 export interface Lab {
@@ -434,12 +489,17 @@ export const labs: Lab[] = [
 export const labsSection = {
   eyebrow: "CCNA Training",
   index: "03",
-  heading: "Hands-on labs",
+  heading: "Hands-on",
+  headingAccent: "labs",
   note: "Built in Cisco Packet Tracer alongside structured CCNA study.",
   certificationNote:
     "Cisco CCNA (200-301): currently preparing / retaking. Studying the full syllabus: network fundamentals, network access, IP connectivity, IP services, security fundamentals and automation basics.",
   configuredLabel: "Configured",
   ghostWord: "Labs",
+
+  /* Shelf chrome: the label on the rail, and the hint printed under it. */
+  railHint: "Drag the rail to browse the labs.",
+  shelfHint: "Scroll to spin the shelf",
 };
 
 /* --------------------------------------------------------------- projects -- */
@@ -551,14 +611,16 @@ export const projects: Project[] = [
 export const projectsSection = {
   eyebrow: "Supporting Work",
   index: "04",
-  heading: "Things I've built",
+  heading: "Things I've",
+  headingAccent: "built",
   note: "Full-stack web projects from my diploma and internship — where the server, database and deployment troubleshooting above came from.",
   ghostWord: "Work",
   liveLabel: "Live",
   codeLabel: "Code",
   prevLabel: "Previous project",
   nextLabel: "Next project",
-  railHint: "Drag the rail or use the arrows to cycle.",
+  browseLabel: "View the code",
+  messageLabel: "Message me",
 };
 
 /* ---------------------------------------------------------------- contact -- */
@@ -570,9 +632,19 @@ export interface NetworkLink {
 }
 
 export const contact = {
+  availabilityPill: "Available for work",
+  whatsappLabel: "Message on WhatsApp",
+  emailLabel: "Send an email",
+  cardLabels: {
+    email: "Email",
+    phone: "Phone",
+    basedIn: "Based in",
+    elsewhere: "Elsewhere",
+  },
   eyebrow: "Open to work & collaboration",
-  index: "05",
-  heading: "Let's talk",
+  index: "06",
+  heading: "Let's",
+  headingAccent: "talk",
   ghostWord: "Contact",
 
   networkLabel: "Find me elsewhere",
@@ -612,6 +684,22 @@ export const contact = {
   },
 };
 
+/* ------------------------------------------------------------------- game -- */
+
+export const game = {
+  label: "Easter egg",
+  tagline: "Break it if you can. It still ships.",
+  /** Spelled out in bricks on a dot-matrix grid. */
+  word: ["HELLO", "WORLD"],
+  playLabel: "Play",
+  restartLabel: "Restart",
+  clearedLabel: "Cleared — it still ships.",
+  lostLabel: "Dropped it. Try again.",
+  hint: "Move the paddle with your mouse, the arrow keys, or a finger.",
+  srDescription:
+    "A decorative brick-breaker game spelling HELLO WORLD. Entirely optional — nothing on this page depends on playing it.",
+};
+
 /* ----------------------------------------------------------------- footer -- */
 
 export const footer = {
@@ -637,8 +725,10 @@ export const ui = {
   navAriaLabel: "Navigation",
   elsewhereLabel: "Elsewhere",
   talkCta: "Let's talk",
-  lightThemeLabel: "Switch to light theme",
-  darkThemeLabel: "Switch to dark theme",
+  resumeLabel: "Resume",
   portraitMissing: "Portrait missing",
   noImage: "No image",
+  themeLabel: "Theme",
+  themeToLight: "Switch to light theme",
+  themeToDark: "Switch to dark theme",
 };

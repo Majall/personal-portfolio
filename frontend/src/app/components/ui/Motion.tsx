@@ -172,6 +172,95 @@ export function SplitHeading({
 }
 
 /**
+ * A chapter heading: a heavy uppercase Archivo lead followed by one italic
+ * serif accent word.
+ *
+ * The two halves are separate props rather than one string because they are
+ * set in different faces — concatenating them would mean parsing the text
+ * back apart to know where the accent starts. Each word still clips and
+ * rises independently, and the whole phrase is exposed to assistive tech as
+ * one line so it is never announced as fragments.
+ */
+export function ChapterHeading({
+  text,
+  accent,
+  className,
+  as: Tag = "h2",
+}: {
+  text: string;
+  accent?: string;
+  className?: string;
+  as?: "h1" | "h2" | "h3";
+}) {
+  const reduce = useReducedMotion();
+  const words = text.split(" ");
+  const full = accent ? `${text} ${accent}` : text;
+
+  const body = (
+    <>
+      {words.map((word, index) => (
+        <span
+          key={`${word}-${index}`}
+          className="inline-block overflow-hidden align-bottom"
+        >
+          <motion.span
+            className="display inline-block"
+            variants={{
+              hidden: { y: "110%" },
+              visible: { y: "0%", transition: { duration: 0.85, ease: EASE } },
+            }}
+          >
+            {word}
+            {index < words.length - 1 || accent ? " " : ""}
+          </motion.span>
+        </span>
+      ))}
+      {accent && (
+        <span className="inline-block overflow-hidden align-bottom">
+          <motion.span
+            className="serif-accent inline-block"
+            variants={{
+              hidden: { y: "110%" },
+              visible: { y: "0%", transition: { duration: 0.85, ease: EASE } },
+            }}
+          >
+            {accent}
+          </motion.span>
+        </span>
+      )}
+    </>
+  );
+
+  if (reduce) {
+    return (
+      <Tag className={className}>
+        <span className="display">{text}</span>
+        {accent ? <span className="serif-accent"> {accent}</span> : null}
+      </Tag>
+    );
+  }
+
+  return (
+    <Tag className={className}>
+      <span className="sr-only">{full}</span>
+      <motion.span
+        aria-hidden="true"
+        className="inline"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-10% 0px" }}
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.08 } },
+        }}
+      >
+        {body}
+      </motion.span>
+    </Tag>
+  );
+}
+
+/**
  * Oversized decorative word that drifts horizontally as the section scrolls.
  * Purely ornamental, so it is aria-hidden and frozen under reduced motion.
  */
@@ -223,9 +312,13 @@ export function TextRoll({
   if (reduce) return <span className={className}>{label}</span>;
 
   return (
+    /* 1.4em rather than 1em: at 1em the clipping rectangle sits exactly on
+       the baseline and shears the descenders off every g, p and y. The
+       duplicate is positioned at top-full and travels a full height, so the
+       roll still lands exactly on the copy whatever the height is. */
     <span
       className={`relative block overflow-hidden ${className ?? ""}`}
-      style={{ height: "1em" }}
+      style={{ height: "1.4em", lineHeight: "1.4em" }}
     >
       <span className="block transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-full group-focus-visible:-translate-y-full">
         {label}

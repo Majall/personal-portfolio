@@ -1,144 +1,165 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Section, SectionLabel, Container } from "./ui/Section";
-import { Reveal, SplitHeading, GhostWord } from "./ui/Motion";
-import {
-  services,
-  servicesSection,
-  skillGroups,
-  skillsSection,
-} from "../../data/content";
+import { ChapterHeading, Reveal } from "./ui/Motion";
+import { services, servicesSection } from "../../data/content";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 /**
- * "What I can do" — six capability areas, followed by the technical skills
- * they rest on.
+ * Services, as a single-open accordion.
  *
- * The two belong in one chapter: the cards say what I can be handed, the
- * skill lists say what I'd use to do it. Splitting them into separate
- * sections made the nav longer without telling the reader anything more.
+ * The expanded row inverts to a warm off-white panel with black type — the
+ * one bright surface on the page. That inversion is doing the work a border
+ * or a chevron would otherwise do: at a glance you can see which row is open
+ * from across the page, with no other cue needed.
+ *
+ * Rows are buttons controlling a region, wired with aria-expanded and
+ * aria-controls, so the open state is exposed rather than only drawn. Only
+ * one row is open at a time; clicking the open row closes it.
  */
 const Services: React.FC = () => {
   const reduce = useReducedMotion();
+  /* First row open on arrival, matching the reference. */
+  const [open, setOpen] = useState<string | null>(services[0]?.number ?? null);
 
   return (
-    <Section id="services" tone="bone" className="py-20 sm:py-28 lg:py-36">
-      <GhostWord
-        text={servicesSection.ghostWord}
-        className="right-0 top-[8%] text-[26vw] leading-none"
-        from={120}
-        to={-120}
-      />
-
+    <Section id="service" surface className="py-24 sm:py-32">
       <Container className="relative z-10">
         <SectionLabel index={servicesSection.index}>
           {servicesSection.eyebrow}
         </SectionLabel>
 
-        <div className="mt-12 flex flex-col gap-6 lg:mt-16 lg:flex-row lg:items-end lg:justify-between">
-          <SplitHeading
-            text={servicesSection.heading}
-            className="display text-chapter"
-          />
-          <Reveal delay={0.1}>
-            <p className="max-w-xs text-sm leading-relaxed text-muted">
+        {/* The chapter heading sits hard right, against the left-aligned rows
+            below it — the asymmetry is from the reference. */}
+        <div className="mt-14 flex flex-col items-start gap-8 md:flex-row md:items-end md:justify-between">
+          <Reveal className="order-2 max-w-md md:order-1">
+            <p className="text-sm leading-relaxed text-muted">
               {servicesSection.note}
             </p>
           </Reveal>
-        </div>
 
-        {/* Capability cards. Negative margins collapse the shared borders into
-            single hairlines, so the grid reads as one ruled table. */}
-        <motion.ul
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-8% 0px" }}
-          variants={{
-            hidden: {},
-            visible: { transition: { staggerChildren: reduce ? 0 : 0.06 } },
-          }}
-          className="mt-14 grid sm:grid-cols-2 lg:mt-20 lg:grid-cols-3"
-        >
-          {services.map((service) => (
-            <motion.li
-              key={service.number}
-              variants={{
-                hidden: reduce ? {} : { opacity: 0, y: 24 },
-                visible: {
-                  opacity: 1,
-                  y: 0,
-                  transition: { duration: 0.6, ease: EASE },
-                },
-              }}
-              className="group relative -mt-px -ml-px border p-7 rule transition-colors duration-500 hover:bg-(--tone-raise) sm:p-8"
-            >
-              <span className="label text-muted">{service.number}</span>
-
-              <h3 className="display mt-5 text-xl leading-tight sm:text-2xl">
-                {service.title}
-              </h3>
-
-              <p className="mt-3.5 text-sm leading-relaxed text-muted">
-                {service.description}
-              </p>
-
-              <ul className="mt-6 space-y-2">
-                {service.bullets.map((bullet) => (
-                  <li
-                    key={bullet}
-                    className="flex gap-3 text-sm leading-relaxed"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="mt-[0.55em] block h-px w-2.5 shrink-0 bg-current opacity-40"
-                    />
-                    <span>{bullet}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.li>
-          ))}
-        </motion.ul>
-
-        {/* Technical skills, grouped */}
-        <div className="mt-20 lg:mt-28">
-          <div className="flex flex-wrap items-baseline justify-between gap-3 border-b pb-4 rule">
-            <h3 className="display text-2xl sm:text-3xl">
-              {skillsSection.label}
-            </h3>
-            <span className="label text-muted">{skillsSection.note}</span>
-          </div>
-
-          <div className="mt-10 space-y-12">
-            {skillGroups.map((group) => (
-              <Reveal key={group.key}>
-                <div className="grid gap-5 lg:grid-cols-12 lg:gap-8">
-                  <div className="lg:col-span-3">
-                    <h4 className="display text-lg sm:text-xl">{group.label}</h4>
-                    <p className="label mt-2 text-muted">{group.note}</p>
-                    <p className="label mt-2 text-muted opacity-70">
-                      {String(group.items.length).padStart(2, "0")}
-                    </p>
-                  </div>
-
-                  <ul className="flex flex-wrap gap-2 lg:col-span-9">
-                    {group.items.map((item) => (
-                      <li
-                        key={item}
-                        className="rounded-full border px-4 py-2 text-sm rule transition-colors duration-300 hover:border-current"
-                      >
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+          <ChapterHeading
+            text={servicesSection.heading}
+            accent={servicesSection.headingAccent}
+            className="chrome-text order-1 text-chapter md:order-2 md:text-right"
+          />
         </div>
       </Container>
+
+      {/* Full-bleed rows. */}
+      <div className="mt-16 border-t border-line">
+        {services.map((service) => {
+          const isOpen = open === service.number;
+          const panelId = `service-panel-${service.number}`;
+          const buttonId = `service-trigger-${service.number}`;
+
+          return (
+            <div
+              key={service.number}
+              className={`border-b border-line transition-colors duration-500 ${
+                isOpen ? "bg-cream text-ink" : "bg-ink text-bone"
+              }`}
+            >
+              <h3>
+                <button
+                  id={buttonId}
+                  type="button"
+                  aria-expanded={isOpen}
+                  aria-controls={panelId}
+                  onClick={() => setOpen(isOpen ? null : service.number)}
+                  className="group flex w-full items-center gap-5 px-4 py-6 text-left transition-colors sm:gap-10 sm:px-8 sm:py-7 lg:px-12"
+                >
+                  <span
+                    className={`label shrink-0 tabular-nums ${
+                      isOpen ? "text-ink/60" : "text-muted"
+                    }`}
+                  >
+                    {service.number}
+                  </span>
+
+                  <span className="display flex-1 text-base leading-tight sm:text-lg lg:text-xl">
+                    {service.title}
+                  </span>
+
+                  {/* ↗ when open, ↘ when closed — the arrow rotates rather
+                      than swapping, so the change reads as one movement. */}
+                  <motion.span
+                    aria-hidden="true"
+                    className="shrink-0"
+                    animate={{ rotate: isOpen ? -90 : 0 }}
+                    transition={
+                      reduce ? { duration: 0 } : { duration: 0.45, ease: EASE }
+                    }
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5">
+                      <path
+                        d="M7 7l10 10M17 17V7.5M17 17H7.5"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                    </svg>
+                  </motion.span>
+                </button>
+              </h3>
+
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    id={panelId}
+                    role="region"
+                    aria-labelledby={buttonId}
+                    key="panel"
+                    initial={reduce ? { height: "auto" } : { height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={reduce ? { height: "auto" } : { height: 0, opacity: 0 }}
+                    transition={
+                      reduce ? { duration: 0 } : { duration: 0.55, ease: EASE }
+                    }
+                    className="overflow-hidden"
+                  >
+                    <div className="grid gap-8 px-4 pb-9 sm:grid-cols-2 sm:gap-14 sm:px-8 lg:px-12 lg:pl-[7.5rem]">
+                      <ul className="space-y-3">
+                        {service.bullets.map((bullet) => (
+                          <li
+                            key={bullet}
+                            className="flex gap-3 text-sm leading-relaxed text-ink/75"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="mt-[0.5em] block h-1 w-1 shrink-0 rounded-full bg-ink/40"
+                            />
+                            {bullet}
+                          </li>
+                        ))}
+                      </ul>
+
+                      <div>
+                        <p className="text-sm leading-relaxed text-ink/75">
+                          {service.description}
+                        </p>
+
+                        <a
+                          href="#project"
+                          className="mt-7 inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 label text-cream transition-opacity hover:opacity-85"
+                        >
+                          {servicesSection.viewProjectsLabel}
+                          <span aria-hidden="true">↗</span>
+                        </a>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </div>
     </Section>
   );
 };

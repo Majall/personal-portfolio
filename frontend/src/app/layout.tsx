@@ -1,23 +1,49 @@
 import type { Metadata } from "next";
-import { Outfit, Archivo, JetBrains_Mono } from "next/font/google";
+import {
+  Inter,
+  Archivo,
+  Instrument_Serif,
+  JetBrains_Mono,
+} from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "./context/ThemaeContext";
+import IntroLoader from "./components/IntroLoader";
+import SmoothScroll from "./components/SmoothScroll";
 import { meta, ui } from "../data/content";
 
-/* Body face. Each face exposes a CSS variable rather than being applied via
-   className on <body>, so globals.css decides where each one is used. */
-const outfit = Outfit({
+/* Applied before first paint, so a visitor who chose light never sees a dark
+   frame first. It has to be an inline script in <head>: anything that waits
+   for React to hydrate runs after the browser has already painted, which is
+   exactly the flash this avoids.
+
+   Order of authority: an explicit stored choice wins, otherwise the OS
+   preference, otherwise dark. Kept to one statement and wrapped in a
+   try/catch, because localStorage throws outright in some privacy modes and
+   an exception here would block the rest of the document. */
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(!t){t=window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"}if(t==="light"){document.documentElement.dataset.theme="light"}}catch(e){}})();`;
+
+/* Body face. */
+const inter = Inter({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600"],
-  variable: "--font-outfit",
+  variable: "--font-inter",
   display: "swap",
 });
 
-/* Display face: a heavy, wide grotesk for the oversized uppercase headlines. */
+/* Display face: heavy, wide grotesk for the oversized uppercase headlines.
+   800/900 only — anything lighter loses against the display sizes. */
 const archivo = Archivo({
   subsets: ["latin"],
-  weight: ["600", "700", "800", "900"],
+  weight: ["800", "900"],
   variable: "--font-archivo",
+  display: "swap",
+});
+
+/* The single italic accent word in each chapter heading. */
+const instrument = Instrument_Serif({
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["italic", "normal"],
+  variable: "--font-instrument",
   display: "swap",
 });
 
@@ -34,21 +60,12 @@ export const metadata: Metadata = {
   description: meta.description,
 };
 
-/* Runs before first paint so the stored theme is applied without a flash of
-   the wrong palette. Kept deliberately tiny and failure-tolerant: private
-   browsing can make localStorage throw. */
-const themeScript = `
-(function(){
-  try {
-    var stored = localStorage.getItem("theme");
-    var dark = stored
-      ? stored === "dark"
-      : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (dark) document.documentElement.classList.add("dark");
-  } catch (e) {}
-})();
-`;
-
+/* Dark is the default and is what the markup renders; light is applied by the
+   inline script above, before paint, from a stored choice or the OS setting.
+   `suppressHydrationWarning` is on <html> because that script mutates the very
+   element React is about to hydrate — the attribute it adds is expected to
+   differ from the server's output, and this is the one case where that is
+   correct rather than a bug. */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -57,20 +74,26 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${archivo.variable} ${jetbrains.variable}`}
       suppressHydrationWarning
+      className={`${inter.variable} ${archivo.variable} ${instrument.variable} ${jetbrains.variable}`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="overflow-x-hidden">
+      <body className="overflow-x-hidden bg-ink text-bone">
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-full focus:bg-ink-900 focus:px-5 focus:py-2.5 focus:text-bone-100 focus:label"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-full focus:bg-bone focus:px-5 focus:py-2.5 focus:text-ink focus:label"
         >
           {ui.skipToContent}
         </a>
-        <ThemeProvider>{children}</ThemeProvider>
+
+        <SmoothScroll />
+        <IntroLoader />
+        {children}
+
+        {/* Film grain sits above the page and below the loader. */}
+        <div className="grain" aria-hidden="true" />
       </body>
     </html>
   );

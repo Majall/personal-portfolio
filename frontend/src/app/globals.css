@@ -1,159 +1,195 @@
 @import "tailwindcss";
 
-/* The dark variant is driven by a class on <html>, set by ThemeProvider.
-   Without this, Tailwind v4 falls back to prefers-color-scheme and every
-   dark:* utility in the app silently does nothing. */
-@custom-variant dark (&:where(.dark, .dark *));
+/* ===========================================================================
+   Design system — one set of roles, two themes
+   ===========================================================================
+
+   Every colour in the site is one of eight role tokens. Components never name
+   a literal colour, so switching theme is a matter of redefining these eight
+   values and nothing else:
+
+     ink      the page itself
+     surface  a chapter that needs to lift off the page
+     card     a panel inside a chapter
+     line     every hairline border
+     bone     primary text
+     muted    secondary text
+     cream    the ONE inverted surface (the open service row)
+     signal   status only
+
+   NOTE ON NAMING: the names are roles, not literal colours. `ink` is the
+   page and `bone` is the text — so in dark `ink` is near-black and `bone` is
+   near-white, and in light they swap. Read them as "page" and "text" and the
+   inversion costs no component changes.
+
+   `cream` is the one surface that runs against the page: a warm off-white
+   panel on the dark theme, a near-black panel on the light one. Because the
+   markup says `bg-cream text-ink`, that reversal happens for free — the
+   expanded service row stays the single contrasting surface either way, which
+   is what makes it read as "open" without a chevron.
+
+   Dark is the default. Light is applied by `data-theme="light"` on <html>,
+   set before first paint by the inline script in layout.tsx.
+--------------------------------------------------------------------------- */
 
 @theme {
-  /* ---- Monochrome core -------------------------------------------------
-     Strictly ink + bone. No accent hue anywhere; emphasis comes from scale,
-     weight and tone reversal instead of colour. */
-  --color-ink-950: #08080a;
-  --color-ink-900: #0b0b0d;
-  --color-ink-800: #141417;
-  --color-ink-700: #1e1e22;
-  --color-ink-600: #2b2b30;
-  --color-ink-500: #45454c;
+  /* ---- Surfaces & text (dark) ---- */
+  --color-ink: #0b0c0e;
+  --color-surface: #101114;
+  --color-card: #15171a;
+  --color-line: #262a2f;
+  --color-bone: #eceef1;
+  --color-muted: #8d939b;
 
-  --color-bone-50: #faf9f6;
-  --color-bone-100: #f2f1ec;
-  --color-bone-200: #e8e6df;
-  --color-bone-300: #d6d3c9;
-  --color-bone-400: #b3afa3;
+  /* ---- Reserved accents ---- */
+  --color-cream: #e9e5db;
+  --color-signal: #3ecf8e;
 
   /* ---- Fonts (bound to next/font CSS variables in layout.tsx) ---- */
   --font-display: var(--font-archivo), "Arial Black", sans-serif;
-  --font-body: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
   --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
 
-  /* ---- Editorial type scale --------------------------------------------
+  /* ---- Editorial type scale ----
      Extreme contrast: huge display, tiny labels, very little between. */
   --text-label: 0.625rem;
   --text-label--line-height: 1.1;
   --text-label--letter-spacing: 0.18em;
 
+  --text-nav: 0.6875rem;
+  --text-nav--line-height: 1;
+  --text-nav--letter-spacing: 0.14em;
+
   --text-display: clamp(2.75rem, 11vw, 9.5rem);
   --text-display--line-height: 0.86;
-  --text-display--letter-spacing: -0.03em;
+  --text-display--letter-spacing: -0.04em;
 
   --text-chapter: clamp(2rem, 6.5vw, 5rem);
   --text-chapter--line-height: 0.9;
-  --text-chapter--letter-spacing: -0.02em;
+  --text-chapter--letter-spacing: -0.04em;
 
   --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ---------------------------------------------------------------------------
-   Tone system
+   Light theme
 
-   The page alternates full-bleed dark and light chapters; that alternation IS
-   the design. A single global theme toggle would fight it, so instead each
-   section declares a *tone* and the toggle swaps which end of the mono scale
-   each tone resolves to. "Dark mode" inverts the rhythm rather than
-   flattening it, so the toggle keeps working and the look survives.
+   Redefines the same eight role tokens. `html[data-theme="light"]` is used
+   rather than a bare attribute selector so it outranks the `:root` rule
+   Tailwind emits for @theme regardless of source order.
+
+   `--glow` is the colour of every light source on the page — the hero key
+   light, the portrait rim light, the intro backlight, the smoke, the lit
+   panel behind each lab figure. On dark those are white light on black; on
+   light they become shadow on white. Components interpolate it as
+   `rgb(var(--glow) / <alpha>)`, so a single value flips all of them and no
+   component carries a literal colour.
 --------------------------------------------------------------------------- */
 :root {
-  --tone-bg: var(--color-bone-100);
-  --tone-fg: var(--color-ink-900);
-  --tone-muted: var(--color-ink-500);
-  --tone-line: rgb(11 11 13 / 0.14);
-  --tone-raise: rgb(255 255 255 / 0.65);
-  color-scheme: light;
+  --glow: 255 255 255;
+  --grain-blend: screen;
+
+  /* Brushed metal, as a single reusable gradient. Bright on dark: the type
+     reads as polished chrome catching an overhead light. */
+  --metal: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #cfcfcf 30%,
+    #6f6f6f 52%,
+    #9a9a9a 70%,
+    #ededed 100%
+  );
+  --metal-shadow: rgb(0 0 0 / 0.6);
 }
 
-.dark {
-  color-scheme: dark;
-}
+html[data-theme="light"] {
+  --color-ink: #ffffff;
+  --color-surface: #f6f6f3;
+  --color-card: #f1f1ee;
+  --color-line: #dedeD9;
+  --color-bone: #15171a;
+  --color-muted: #65696f;
 
-[data-tone="ink"] {
-  --tone-bg: var(--color-ink-900);
-  --tone-fg: var(--color-bone-100);
-  --tone-muted: var(--color-bone-400);
-  --tone-line: rgb(242 241 236 / 0.16);
-  --tone-raise: rgb(255 255 255 / 0.05);
-  color-scheme: dark;
-}
+  /* The inverted panel becomes near-black, and the status green darkens:
+     #3ecf8e on white is about 1.9:1 and fails contrast outright. */
+  --color-cream: #15171a;
+  --color-signal: #0f7a4c;
 
-[data-tone="bone"] {
-  --tone-bg: var(--color-bone-100);
-  --tone-fg: var(--color-ink-900);
-  --tone-muted: var(--color-ink-500);
-  --tone-line: rgb(11 11 13 / 0.14);
-  --tone-raise: rgb(255 255 255 / 0.65);
-  color-scheme: light;
-}
+  --glow: 10 12 16;
+  --grain-blend: multiply;
 
-/* In dark mode every tone collapses toward ink, keeping the alternation
-   legible as a subtle step rather than a hard flip to white. */
-.dark [data-tone="bone"] {
-  --tone-bg: var(--color-ink-800);
-  --tone-fg: var(--color-bone-100);
-  --tone-muted: var(--color-bone-400);
-  --tone-line: rgb(242 241 236 / 0.14);
-  --tone-raise: rgb(255 255 255 / 0.04);
-  color-scheme: dark;
-}
-
-.dark [data-tone="ink"] {
-  --tone-bg: var(--color-ink-950);
-  --tone-fg: var(--color-bone-100);
-  --tone-muted: var(--color-bone-400);
-  --tone-line: rgb(242 241 236 / 0.14);
-  --tone-raise: rgb(255 255 255 / 0.05);
+  /* The same treatment inverted: graphite rather than chrome. A bright metal
+     gradient on white would be invisible, so the stops darken and the band
+     order flips to keep a highlight running through the middle of the
+     letterforms. The white specular in .chrome-sweep still reads, because it
+     now crosses dark glyphs. */
+  --metal: linear-gradient(
+    180deg,
+    #2b2b2b 0%,
+    #8c8c8c 32%,
+    #1f1f1f 54%,
+    #6e6e6e 72%,
+    #3a3a3a 100%
+  );
+  --metal-shadow: rgb(0 0 0 / 0.16);
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
-    background-color: var(--color-bone-100);
+    background-color: var(--color-ink);
+    color-scheme: dark;
   }
 
-  html.dark {
-    background-color: var(--color-ink-950);
+  html[data-theme="light"] {
+    color-scheme: light;
+  }
+
+  /* Lenis drives the scroll position itself, so the native smooth behaviour
+     has to be off wherever it is running — the two fight otherwise and anchor
+     jumps stutter. The class is added by Lenis, so this only applies when it
+     is actually active; without JS the native smooth scroll above still
+     stands. */
+  html.lenis {
+    scroll-behavior: auto;
+  }
+
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+
+  /* Anything that scrolls on its own — the project shelf — must keep its own
+     scrolling rather than being absorbed into the page scroll. */
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
   }
 
   body {
     font-family: var(--font-body);
-    background-color: var(--color-bone-100);
-    color: var(--color-ink-900);
+    background-color: var(--color-ink);
+    color: var(--color-bone);
     -webkit-font-smoothing: antialiased;
   }
 
-  .dark body {
-    background-color: var(--color-ink-950);
-    color: var(--color-bone-100);
-  }
-
-  /* Visible keyboard focus on every tone, since there is no accent colour
-     to fall back on. */
   :focus-visible {
-    outline: 2px solid var(--tone-fg);
+    outline: 2px solid var(--color-bone);
     outline-offset: 3px;
     border-radius: 2px;
   }
 
   ::selection {
-    background: var(--tone-fg);
-    color: var(--tone-bg);
+    background: var(--color-bone);
+    color: var(--color-ink);
   }
 }
 
 @layer components {
-  /* A full-bleed chapter that paints itself from the active tone. */
-  .tone-surface {
-    background-color: var(--tone-bg);
-    color: var(--tone-fg);
-  }
-
-  .text-muted {
-    color: var(--tone-muted);
-  }
-
-  .rule {
-    border-color: var(--tone-line);
-  }
-
   .label {
     font-family: var(--font-mono);
     font-size: var(--text-label);
@@ -164,30 +200,83 @@
 
   .display {
     font-family: var(--font-display);
+    font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.04em;
     line-height: 0.86;
   }
 
-  /* Metallic headline fill. Falls back to a solid tone colour where
-     background-clip on text is unsupported. */
-  .chrome {
-    color: var(--tone-fg);
+  /* The one italic serif accent word inside a chapter heading. Deliberately
+     NOT uppercase and NOT letterspaced — the contrast against the heavy
+     Archivo lead is the whole point. */
+  .serif-accent {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-style: italic;
+    text-transform: none;
+    letter-spacing: -0.01em;
+  }
+
+  /* Brushed-metal text fill — the signature treatment on every display
+     heading. The gradient runs vertically through four stops so a bright
+     highlight band and a shadowed band both cross the letterforms, which is
+     what reads as polished metal rather than a flat grey.
+
+     Falls back to a flat bone fill where background-clip on text is
+     unsupported, which is why `color` is set before the @supports block
+     rather than inside it. */
+  .chrome-text {
+    color: var(--color-bone);
   }
 
   @supports (-webkit-background-clip: text) or (background-clip: text) {
-    .chrome {
-      background-image: linear-gradient(
-        178deg,
-        var(--tone-fg) 0%,
-        var(--tone-fg) 38%,
-        var(--tone-muted) 54%,
-        var(--tone-fg) 72%,
-        var(--tone-fg) 100%
-      );
+    .chrome-text {
+      background-image: var(--metal);
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
+      filter: drop-shadow(0 2px 10px var(--metal-shadow));
+    }
+  }
+
+  /* A specular highlight that travels once across brushed metal, fired after
+     the letters have landed in the intro.
+
+     The sweep is a second background layer on the SAME element as the metal
+     gradient rather than a duplicate copy of the text laid over it. That
+     matters: background-clip:text clips both layers to exactly the same
+     glyphs, so the highlight can never drift out of register with the
+     letterforms the way an overlaid copy would at some font size.
+
+     `both` fill mode holds the start position during the delay, so the
+     highlight is parked off the left edge instead of sitting mid-word while
+     the letters are still arriving. */
+  .chrome-sweep {
+    background-image:
+      linear-gradient(
+        100deg,
+        transparent 40%,
+        rgb(255 255 255 / 0.95) 50%,
+        transparent 60%
+      ),
+      var(--metal);
+    background-size:
+      300% 100%,
+      100% 100%;
+    background-repeat: no-repeat, no-repeat;
+    animation: chrome-sweep 1.15s cubic-bezier(0.4, 0, 0.2, 1) 1.45s both;
+  }
+
+  @keyframes chrome-sweep {
+    from {
+      background-position:
+        180% 0,
+        0 0;
+    }
+    to {
+      background-position:
+        -80% 0,
+        0 0;
     }
   }
 
@@ -195,25 +284,73 @@
      only — always paired with aria-hidden in the markup. */
   .ghost-word {
     font-family: var(--font-display);
+    font-weight: 900;
     text-transform: uppercase;
-    color: var(--tone-fg);
-    opacity: 0.045;
+    color: var(--color-bone);
+    opacity: 0.035;
     white-space: nowrap;
     user-select: none;
     pointer-events: none;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.04em;
   }
 
-  .hairline-capsule {
-    border: 1px solid var(--tone-line);
-    background: var(--tone-raise);
-    backdrop-filter: blur(12px);
+  /* Fixed film-grain wash over the whole page. The noise is an inline SVG
+     turbulence filter, so it costs no network request and tiles seamlessly.
+     It sits above the content but takes no pointer events, so it never
+     intercepts a click. The blend mode flips with the theme: a multiplied
+     grain is invisible on black, and a screened one is invisible on white. */
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.035;
+    mix-blend-mode: var(--grain-blend);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+  }
+
+  /* Drifting smoke behind the contact chapter. Two offset radial clouds on a
+     very slow loop — enough to stop the black reading as dead flat, not
+     enough to compete with the type in front of it. */
+  .smoke {
+    position: absolute;
+    inset: -20%;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image:
+      radial-gradient(
+        40% 30% at 20% 35%,
+        rgb(var(--glow) / 0.07) 0%,
+        transparent 70%
+      ),
+      radial-gradient(
+        35% 40% at 75% 60%,
+        rgb(var(--glow) / 0.05) 0%,
+        transparent 70%
+      ),
+      radial-gradient(
+        50% 35% at 50% 85%,
+        rgb(var(--glow) / 0.04) 0%,
+        transparent 70%
+      );
+    animation: smoke-drift 34s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+
+  @keyframes smoke-drift {
+    from {
+      transform: translate3d(-2%, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(2%, -3%, 0) scale(1.12);
+    }
   }
 
   /* Seamless marquee for the tech strip. The track holds two identical
      copies of the list, so translating by exactly -50% lands the second
      copy where the first began and the loop never shows a seam.
-     Duration is set inline by the component. */
+     Duration and direction are set inline by the component. */
   .marquee-track {
     animation-name: marquee;
     animation-timing-function: linear;
@@ -229,14 +366,27 @@
       transform: translate3d(-50%, 0, 0);
     }
   }
+
+  /* The horizontal shelf. Scroll snapping gives the "one card at a time"
+     feel from the reference without JavaScript driving the position; the
+     component only observes which card is centred to drive the counter. */
+  .shelf {
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+  }
+
+  .shelf > * {
+    scroll-snap-align: center;
+  }
 }
 
 /* ---------------------------------------------------------------------------
    Reduced motion
 
-   Framer Motion is gated per-component with useReducedMotion, but this is the
-   backstop for CSS transitions, the smooth-scroll behaviour, and any marquee
-   or drift that is driven purely by stylesheet animation.
+   Framer Motion is gated per-component with useReducedMotion, and the intro
+   loader skips entirely. This is the backstop for CSS transitions, the
+   smooth-scroll behaviour, the marquee and the smoke, which are driven purely
+   by the stylesheet.
 --------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -253,12 +403,7 @@
   }
 }
 
-/* Utility retained from the previous stylesheet: a few layouts still use it. */
-.grid-cols-auto {
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-}
-
-/* Hide scrollbars on the horizontal drag rails without disabling scrolling. */
+/* Hide scrollbars on the horizontal rails without disabling scrolling. */
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;

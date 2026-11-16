@@ -1,15 +1,34 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import { useRef } from "react";
 import { Container } from "./ui/Section";
 import { TextRoll } from "./ui/Motion";
-import { hero, profile, ui } from "../../data/content";
+import { hero, profile } from "../../data/content";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-const Header: React.FC = () => {
+/**
+ * The hero.
+ *
+ * Three stacked layers, back to front: the oversized chrome word, the cut-out
+ * portrait, then the role line and actions. The portrait deliberately crosses
+ * the middle of the word — that overlap is the whole composition, so the word
+ * is centred on the same axis as the portrait rather than being laid out
+ * above it.
+ *
+ * `portraitSrc` is resolved on the server in page.tsx. When the cut-out PNG is
+ * not on disk it arrives as null and the hero falls back to type alone, which
+ * is a deliberate design, not a broken state — so nothing here renders a
+ * placeholder box.
+ */
+const Header: React.FC<{ portraitSrc?: string | null }> = ({ portraitSrc }) => {
   const reduce = useReducedMotion();
   const ref = useRef<HTMLElement>(null);
 
@@ -18,145 +37,158 @@ const Header: React.FC = () => {
     offset: ["start start", "end start"],
   });
 
-  /* Parallax: the headline drifts up faster than the portrait, so the two
-     layers separate as you scroll out of the hero. */
-  const titleY = useTransform(scrollYProgress, [0, 1], ["0%", "-38%"]);
-  const portraitY = useTransform(scrollYProgress, [0, 1], ["0%", "-14%"]);
-  const fade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  /* The word leaves faster than the portrait, so the two layers separate as
+     the hero scrolls away instead of sliding off as one flat picture. */
+  const wordY = useTransform(scrollYProgress, [0, 1], ["0%", "-55%"]);
+  const portraitY = useTransform(scrollYProgress, [0, 1], ["0%", "-12%"]);
+  const chromeFade = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
 
   return (
     <header
       ref={ref}
-      id="top"
-      data-tone="bone"
-      className="tone-surface relative flex min-h-[100svh] w-full flex-col justify-between overflow-hidden pt-24 pb-8"
+      id="home"
+      className="relative flex min-h-[100svh] w-full flex-col justify-end overflow-hidden bg-ink pb-10 pt-28 sm:pb-14"
     >
-      <Container className="relative z-10 flex flex-1 flex-col justify-center">
-        {/* Name, set small above the headline — the headline itself states the
-            discipline, which is what a hiring manager is scanning for. */}
-        <motion.p
-          initial={reduce ? false : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: EASE }}
-          style={reduce ? undefined : { opacity: fade }}
-          className="label relative z-10 mb-5 text-muted"
-        >
-          {profile.name} — {profile.tagline}
-        </motion.p>
+      {/* Overhead key light. Without it the black behind the portrait reads
+          as a void rather than as a studio backdrop. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-[-10%] h-[85vmin] w-[120vmin] -translate-x-1/2 rounded-[50%]"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, rgb(var(--glow) / 0.085) 0%, rgb(var(--glow) / 0.03) 42%, transparent 72%)",
+        }}
+      />
 
-        {/* Oversized headline. The portrait below overlaps it. */}
-        <motion.div
-          style={reduce ? undefined : { y: titleY, opacity: fade }}
-          className="relative z-10 pointer-events-none"
-        >
-          <h1 className="display chrome text-display">
-            <span className="sr-only">
-              {profile.name} — {profile.title}
-            </span>
-            <span aria-hidden="true" className="block">
-              {hero.headline.map((word, i) => (
-                <span
-                  key={`${word}-${i}`}
-                  className="inline-block overflow-hidden align-bottom"
-                >
-                  <motion.span
-                    className="inline-block"
-                    initial={reduce ? false : { y: "110%" }}
-                    animate={{ y: "0%" }}
-                    transition={{ duration: 1, delay: 0.1 + i * 0.09, ease: EASE }}
-                  >
-                    {word}
-                    {i < hero.headline.length - 1 ? " " : ""}
-                  </motion.span>
-                </span>
-              ))}
-            </span>
-          </h1>
-        </motion.div>
+      {/* ---- Layer 1: the word ---- */}
+      <motion.div
+        aria-hidden="true"
+        style={reduce ? undefined : { y: wordY, opacity: chromeFade }}
+        className="pointer-events-none absolute inset-x-0 top-1/2 z-0 -translate-y-1/2"
+      >
+        <Container>
+          <span className="block overflow-hidden">
+            <motion.span
+              className="display chrome-text block text-center"
+              style={{
+                fontSize: "clamp(3.25rem, 15.5vw, 15rem)",
+                lineHeight: 0.82,
+              }}
+              initial={reduce ? false : { y: "115%" }}
+              animate={{ y: "0%" }}
+              transition={{ duration: 1.15, delay: 0.1, ease: EASE }}
+            >
+              {hero.word}
+            </motion.span>
+          </span>
+        </Container>
+      </motion.div>
 
-        {/* Portrait, pulled up over the headline's baseline */}
+      {/* Rim light behind the subject.
+          The portrait is a dark shirt on a near-black page, so without a lit
+          backdrop the body dissolves below the chest and leaves a floating
+          head. This sits between the word and the portrait: bright enough to
+          catch the shoulders and arms, soft enough not to read as a shape. */}
+      {portraitSrc && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 left-1/2 z-[5] h-[78vh] w-[86vmin] max-w-[760px] -translate-x-1/2"
+          style={{
+            background:
+              "radial-gradient(ellipse 54% 46% at 50% 62%, rgb(var(--glow) / 0.13) 0%, rgb(var(--glow) / 0.05) 45%, transparent 74%)",
+          }}
+        />
+      )}
+
+      {/* ---- Layer 2: the portrait ---- */}
+      {portraitSrc && (
         <motion.div
           style={reduce ? undefined : { y: portraitY }}
-          initial={reduce ? false : { opacity: 0, scale: 1.04 }}
+          initial={reduce ? false : { opacity: 0, scale: 1.05 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1.2, delay: 0.25, ease: EASE }}
-          className="relative z-20 mx-auto -mt-[7vw] w-[58%] max-w-[380px] sm:w-[42%] md:-mt-[6vw] md:w-[34%]"
+          transition={{ duration: 1.3, delay: 0.3, ease: EASE }}
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mx-auto h-[62vh] w-full max-w-[560px] sm:h-[68vh] md:h-[74vh]"
         >
-          {profile.profilePic ? (
-            <Image
-              src={profile.profilePic}
-              alt={`Portrait of ${profile.name}`}
-              width={760}
-              height={950}
-              priority
-              sizes="(max-width: 640px) 58vw, (max-width: 768px) 42vw, 34vw"
-              className="h-auto w-full object-contain grayscale contrast-[1.08]"
-            />
-          ) : (
-            <div className="flex aspect-[4/5] w-full items-center justify-center border rule">
-              <span className="label text-muted">{ui.portraitMissing}</span>
-            </div>
-          )}
+          <Image
+            src={portraitSrc}
+            alt={`Portrait of ${profile.name}`}
+            fill
+            priority
+            sizes="(max-width: 768px) 90vw, 560px"
+            className="object-contain object-bottom"
+          />
         </motion.div>
+      )}
 
-        {/* Corner metadata, set small and wide against the display type */}
-        <motion.div
-          style={reduce ? undefined : { opacity: fade }}
-          className="relative z-30 -mt-10 flex flex-col gap-8 sm:-mt-16 md:flex-row md:items-end md:justify-between"
-        >
-          <motion.div
-            initial={reduce ? false : { opacity: 0, y: 16 }}
+      {/* Scrim over the foot of the portrait.
+          Two jobs: it sinks the figure into the page instead of ending on a
+          hard crop, and it keeps the role line and buttons legible where they
+          cross the torso — which they always do at phone widths, since there
+          is no room beside the figure there. Taller on small screens for
+          exactly that reason. */}
+      {portraitSrc && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-[46%] bg-gradient-to-t from-ink via-ink/85 to-transparent sm:h-[32%]"
+        />
+      )}
+
+      {/* ---- Layer 3: role and actions ---- */}
+      <Container className="relative z-20">
+        <h1 className="sr-only">{hero.srHeadline}</h1>
+
+        <div className="flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
+          <motion.p
+            initial={reduce ? false : { opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.7, ease: EASE }}
-            className="max-w-[20rem]"
+            transition={{ duration: 0.8, delay: 0.75, ease: EASE }}
+            className="text-[clamp(1.25rem,3.4vw,2.25rem)] leading-none tracking-tight"
           >
-            <p className="label text-muted">{profile.title}</p>
-            <p className="label mt-2 text-muted">{profile.location}</p>
-          </motion.div>
+            <span className="font-semibold text-bone">{hero.roleLead} </span>
+            <span className="serif-accent text-bone/85">
+              {hero.roleAccent}
+            </span>
+          </motion.p>
 
           <motion.div
-            initial={reduce ? false : { opacity: 0, y: 16 }}
+            initial={reduce ? false : { opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.82, ease: EASE }}
-            className="max-w-sm md:text-right"
+            transition={{ duration: 0.8, delay: 0.88, ease: EASE }}
+            className="flex items-center gap-3"
           >
-            <p className="text-sm leading-relaxed text-muted">{hero.intro}</p>
-            <div className="mt-5 flex flex-wrap gap-2 md:justify-end">
-              <a
-                href={hero.primaryCta.href}
-                className="group rounded-full bg-ink-900 px-6 py-3 label text-bone-100 transition-opacity hover:opacity-85 dark:bg-bone-100 dark:text-ink-900"
+            {/* Scroll affordance — a link to the next chapter rather than a
+                button, so it works with the keyboard and without JS. */}
+            <a
+              href="#about"
+              aria-label={hero.scrollCueLabel}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-bone transition-colors duration-300 hover:border-bone hover:bg-bone hover:text-ink"
+            >
+              <motion.svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                aria-hidden="true"
+                animate={reduce ? undefined : { y: [0, 3, 0] }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
               >
-                <TextRoll label={hero.primaryCta.label} />
-              </a>
-              <a
-                href={hero.secondaryCta.href}
-                className="group rounded-full border px-6 py-3 label rule transition-colors hover:border-current"
-              >
-                <TextRoll label={hero.secondaryCta.label} />
-              </a>
-            </div>
-          </motion.div>
-        </motion.div>
-      </Container>
+                <path
+                  d="M12 5v14M6 13l6 6 6-6"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </motion.svg>
+            </a>
 
-      {/* Scroll cue */}
-      <Container className="relative z-10">
-        <motion.div
-          initial={reduce ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.2, duration: 0.6 }}
-          className="flex items-center justify-between border-t pt-4 rule"
-        >
-          <span className="label text-muted">{hero.scrollCue}</span>
-          <motion.span
-            aria-hidden="true"
-            animate={reduce ? undefined : { y: [0, 5, 0] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-            className="label text-muted"
-          >
-            ↓
-          </motion.span>
-        </motion.div>
+            <a
+              href={hero.contactCta.href}
+              className="group rounded-full border border-line px-7 py-3.5 text-sm text-bone transition-colors duration-300 hover:border-bone hover:bg-bone hover:text-ink"
+            >
+              <TextRoll label={hero.contactCta.label} />
+            </a>
+          </motion.div>
+        </div>
       </Container>
     </header>
   );

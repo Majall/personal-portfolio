@@ -2,27 +2,31 @@
 
 import type { ReactNode } from "react";
 
-/* Full-bleed chapter wrapper. `tone` picks which end of the mono scale the
-   section paints itself with; globals.css resolves it (and inverts the whole
-   rhythm in dark mode). */
+/**
+ * Full-bleed chapter wrapper.
+ *
+ * There is no `tone` prop and no alternation between light and dark chapters.
+ * The whole page is dark, and chapters separate themselves with near-black
+ * steps instead: `ink` is the page, `surface` lifts a chapter slightly off it.
+ * The one bright surface on the site is the expanded service row.
+ */
 export function Section({
   id,
-  tone = "bone",
+  surface = false,
   children,
   className,
 }: {
   id?: string;
-  tone?: "ink" | "bone";
+  surface?: boolean;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <section
       id={id}
-      data-tone={tone}
-      className={`tone-surface relative w-full overflow-hidden scroll-mt-24 ${
-        className ?? ""
-      }`}
+      className={`relative w-full overflow-hidden scroll-mt-20 ${
+        surface ? "bg-surface" : "bg-ink"
+      } ${className ?? ""}`}
     >
       {children}
     </section>
@@ -42,10 +46,12 @@ export function SectionLabel({
 }) {
   return (
     <div
-      className={`flex items-center gap-4 border-b pb-4 rule ${className ?? ""}`}
+      className={`flex items-center gap-4 border-b border-line pb-4 ${
+        className ?? ""
+      }`}
     >
       <span className="label text-muted">{children}</span>
-      <span className="h-px flex-1 bg-current opacity-15" aria-hidden="true" />
+      <span className="h-px flex-1 bg-line" aria-hidden="true" />
       {index ? <span className="label text-muted">{index}</span> : null}
     </div>
   );
