@@ -3,11 +3,13 @@
 import Image from "next/image";
 import {
   motion,
+  useMotionValue,
   useReducedMotion,
   useScroll,
+  useSpring,
   useTransform,
 } from "framer-motion";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Container } from "./ui/Section";
 import { TextRoll } from "./ui/Motion";
 import { hero, profile } from "../../data/content";
@@ -42,6 +44,58 @@ const Header: React.FC<{ portraitSrc?: string | null }> = ({ portraitSrc }) => {
   const wordY = useTransform(scrollYProgress, [0, 1], ["0%", "-55%"]);
   const portraitY = useTransform(scrollYProgress, [0, 1], ["0%", "-12%"]);
   const chromeFade = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
+
+  /* Pointer-follow on the portrait.
+     The pointer position is normalised to -1..1 across the viewport and put
+     through a soft spring, then mapped to a few degrees of tilt and a few
+     pixels of drift. The tilt pivots on the bottom edge of the figure, so the
+     torso stays planted and the head travels furthest — which is what reads
+     as "looking toward the cursor". It is the whole flat cut-out leaning, not
+     a head turn: the angles are kept small enough that the face is never
+     visibly foreshortened.
+
+     These are motion values, so pointer movement never re-renders React. */
+  const pointerX = useMotionValue(0);
+  const pointerY = useMotionValue(0);
+  const followX = useSpring(pointerX, { stiffness: 60, damping: 18, mass: 0.6 });
+  const followY = useSpring(pointerY, { stiffness: 60, damping: 18, mass: 0.6 });
+
+  const tiltY = useTransform(followX, [-1, 1], [-5, 5]);
+  const tiltX = useTransform(followY, [-1, 1], [3, -3]);
+  const lean = useTransform(followX, [-1, 1], [-0.8, 0.8]);
+  const driftX = useTransform(followX, [-1, 1], [-8, 8]);
+
+  useEffect(() => {
+    if (reduce || !portraitSrc) return;
+
+    /* Only for a real hovering pointer. Touch screens have no cursor to
+       follow, and a tap would otherwise leave the figure stuck off-centre. */
+    const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+    if (!finePointer.matches) return;
+
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return;
+      /* Nothing to animate once the hero has scrolled out of view. */
+      if (window.scrollY > window.innerHeight) return;
+      pointerX.set((e.clientX / window.innerWidth) * 2 - 1);
+      pointerY.set((e.clientY / window.innerHeight) * 2 - 1);
+    };
+    const onLeave = () => {
+      pointerX.set(0);
+      pointerY.set(0);
+    };
+
+    /* Listening on the window, passively, rather than putting a handler on
+       an element over the hero: nothing is added to the hit-testing path, so
+       links, selection and scrolling behave exactly as before. */
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.documentElement.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("pointerleave", onLeave);
+      onLeave();
+    };
+  }, [reduce, portraitSrc, pointerX, pointerY]);
 
   return (
     <header
@@ -109,14 +163,33 @@ const Header: React.FC<{ portraitSrc?: string | null }> = ({ portraitSrc }) => {
           transition={{ duration: 1.3, delay: 0.3, ease: EASE }}
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mx-auto h-[62vh] w-full max-w-[560px] sm:h-[68vh] md:h-[74vh]"
         >
-          <Image
-            src={portraitSrc}
-            alt={`Portrait of ${profile.name}`}
-            fill
-            priority
-            sizes="(max-width: 768px) 90vw, 560px"
-            className="object-contain object-bottom"
-          />
+          {/* The pointer-follow lives on its own inner layer so it composes
+              with the scroll parallax and the entrance scale on the wrapper
+              instead of fighting them for the same transform. */}
+          <motion.div
+            data-portrait-follow
+            className="absolute inset-0 origin-bottom will-change-transform"
+            style={
+              reduce
+                ? undefined
+                : {
+                    x: driftX,
+                    rotateX: tiltX,
+                    rotateY: tiltY,
+                    rotateZ: lean,
+                    transformPerspective: 1200,
+                  }
+            }
+          >
+            <Image
+              src={portraitSrc}
+              alt={`Portrait of ${profile.name}`}
+              fill
+              priority
+              sizes="(max-width: 768px) 90vw, 560px"
+              className="object-contain object-bottom"
+            />
+          </motion.div>
         </motion.div>
       )}
 

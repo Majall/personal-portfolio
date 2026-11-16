@@ -19,8 +19,14 @@ const STORAGE_KEY = "intro-played";
    The sequence is a pendulum: a pivot dot drops in, an arm grows out of it and
    begins to swing, and each swing flings one letter of the name into its slot.
    Once the name is assembled it holds, then morphs letter by letter into the
-   word, and the role line arrives underneath before the whole thing fades
-   straight through to the hero.
+   word, the role line arrives underneath, and the word walks back down the
+   same ladder to the name — so the loader closes on who this is rather than
+   on a generic label, and the hero it hands over to then says PORTFOLIO.
+
+   The two morph passes share one ticker and one string function; only the
+   direction differs. That is deliberate: a separate reverse implementation
+   would be free to disagree with the forward one, and the whole point is that
+   the return trip retraces the outward steps exactly.
 
    Keeping the beats in one table rather than scattered through the JSX is what
    makes the sequence adjustable without re-deriving every delay by hand.
@@ -29,10 +35,16 @@ const BEAT = {
   arm: 900, // dot has landed; the arm grows and starts swinging
   fling: 1300, // letters begin arriving, one per swing
   settled: 2950, // all letters home; chrome sweeps across the name
-  morph: 4600, // name starts turning into the word
-  role: 6250, // word complete; the role line fades up
-  out: 7250, // the word and role hold, then the overlay fades out
-  done: 7850,
+  /* The opening hold is short because the name is no longer a one-off — it
+     comes back as the closing frame, which is where it earns a real pause. */
+  morph: 3950, // name starts turning into the word
+  role: 5600, // word complete; the role line fades up
+  unmorph: 6350, // the word turns back into the name, step by step
+  /* The ticker drifts ~280ms over eighteen steps (setInterval plus render
+     latency), so the closing hold is measured from where the last step
+     actually lands rather than from the arithmetic. */
+  out: 8750, // the name holds, then the overlay fades out
+  done: 9350,
 } as const;
 
 /** Milliseconds between one letter being flung and the next. */
@@ -47,6 +59,7 @@ type Phase =
   | "settled"
   | "morph"
   | "role"
+  | "unmorph"
   | "out"
   | "done";
 
@@ -58,6 +71,7 @@ const ORDER: Phase[] = [
   "settled",
   "morph",
   "role",
+  "unmorph",
   "out",
   "done",
 ];
@@ -100,6 +114,12 @@ function morphAt(name: string, word: string, locked: number): string {
   return word.slice(0, locked) + name.slice(locked);
 }
 
+/* Running `locked` back down to zero replays the same ladder in reverse —
+   PORTFOLIO, PORTFOLI, PORTFOL, PORTFO, PORTFL, PORTLL, PORALL, POJALL,
+   PAJALL, MAJALL — so the return trip needs no second string function, only a
+   direction. Each rung is the one state the forward pass already produced, so
+   the two halves cannot drift out of step. */
+
 export default function IntroLoader() {
   const reduce = useReducedMotion();
   const hasPlayed = useSyncExternalStore(
@@ -132,6 +152,7 @@ export default function IntroLoader() {
       setTimeout(() => setPhase("settled"), BEAT.settled),
       setTimeout(() => setPhase("morph"), BEAT.morph),
       setTimeout(() => setPhase("role"), BEAT.role),
+      setTimeout(() => setPhase("unmorph"), BEAT.unmorph),
       setTimeout(() => setPhase("out"), BEAT.out),
       setTimeout(finish, BEAT.done),
     ];
@@ -139,17 +160,27 @@ export default function IntroLoader() {
     return () => timers.forEach(clearTimeout);
   }, [shouldPlay, finish]);
 
-  /* The morph runs on its own ticker rather than on one timeout per character,
-     so the step count follows the word length instead of being hard-coded. */
+  /* One ticker drives both passes, so the step count follows the word length
+     instead of being hard-coded and the return trip is guaranteed to use the
+     same cadence as the outward one. */
   useEffect(() => {
-    if (phase !== "morph") return;
+    const forward = phase === "morph";
+    const backward = phase === "unmorph";
+    if (!forward && !backward) return;
+
+    const target = forward ? loader.word.length : 0;
+
     const id = setInterval(() => {
       setLocked((n) => {
-        const next = n + 1;
-        if (next >= loader.word.length) clearInterval(id);
-        return Math.min(next, loader.word.length);
+        const next = forward ? n + 1 : n - 1;
+        const clamped = forward
+          ? Math.min(next, target)
+          : Math.max(next, target);
+        if (clamped === target) clearInterval(id);
+        return clamped;
       });
     }, MORPH_STEP);
+
     return () => clearInterval(id);
   }, [phase]);
 

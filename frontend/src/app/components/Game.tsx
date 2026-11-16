@@ -165,10 +165,17 @@ const Game: React.FC = () => {
 
     ctx.clearRect(0, 0, s.w, s.h);
 
+    /* Near-white pieces vanish on the light page, so that theme draws them
+       in garnet instead. Dark keeps the original value untouched. */
+    const piece =
+      document.documentElement.dataset.theme === "light"
+        ? "#7a2238"
+        : "#f4f4f4";
+
     /* Bricks */
     const pad = s.cell * 0.16;
     const size = s.cell - pad;
-    ctx.fillStyle = "#f4f4f4";
+    ctx.fillStyle = piece;
     for (const brick of s.bricks) {
       if (!brick.alive) continue;
       ctx.fillRect(
@@ -187,7 +194,7 @@ const Game: React.FC = () => {
       Math.max(s.paddleX * s.w - paddleW / 2, 0),
       s.w - paddleW,
     );
-    ctx.fillStyle = "#f4f4f4";
+    ctx.fillStyle = piece;
     ctx.beginPath();
     ctx.roundRect(paddleLeft, paddleY, paddleW, paddleH, paddleH / 2);
     ctx.fill();
@@ -338,9 +345,18 @@ const Game: React.FC = () => {
     };
     window.addEventListener("resize", onResize);
 
+    /* Repaint when the theme flips, so an idle board picks up the new
+       piece colour without waiting for the next frame. */
+    const themeWatcher = new MutationObserver(() => draw());
+    themeWatcher.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+
     const s = world.current;
     return () => {
       window.removeEventListener("resize", onResize);
+      themeWatcher.disconnect();
       cancelAnimationFrame(s.raf);
       s.running = false;
     };

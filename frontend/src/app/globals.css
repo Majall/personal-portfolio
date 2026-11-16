@@ -34,15 +34,15 @@
 
 @theme {
   /* ---- Surfaces & text (dark) ---- */
-  --color-ink: #0b0c0e;
-  --color-surface: #101114;
-  --color-card: #15171a;
-  --color-line: #262a2f;
-  --color-bone: #eceef1;
-  --color-muted: #8d939b;
+  --color-ink: #0d070b;
+  --color-surface: #140a10;
+  --color-card: #1b0d14;
+  --color-line: #3a1a26;
+  --color-bone: #f3eef0;
+  --color-muted: #a08b93;
 
   /* ---- Reserved accents ---- */
-  --color-cream: #e9e5db;
+  --color-cream: #c62f3e;
   --color-signal: #3ecf8e;
 
   /* ---- Fonts (bound to next/font CSS variables in layout.tsx) ---- */
@@ -87,7 +87,7 @@
    component carries a literal colour.
 --------------------------------------------------------------------------- */
 :root {
-  --glow: 255 255 255;
+  --glow: 225 45 60;
   --grain-blend: screen;
 
   /* Brushed metal, as a single reusable gradient. Bright on dark: the type
@@ -104,35 +104,118 @@
 }
 
 html[data-theme="light"] {
-  --color-ink: #ffffff;
-  --color-surface: #f6f6f3;
-  --color-card: #f1f1ee;
-  --color-line: #dedeD9;
-  --color-bone: #15171a;
-  --color-muted: #65696f;
+  /* A warm blush page, the light-side sibling of the dark theme's crimson:
+     rose, apricot and a little lilac over an ivory base, with plum-black
+     text. Every text/background pair below clears 4.5:1. */
+  --color-ink: #fff8f5;
+  --color-surface: #fff0ec;
+  --color-card: #ffffff;
+  --color-line: #efd5d2;
+  --color-bone: #24121a;
+  --color-muted: #6e5560;
 
-  /* The inverted panel becomes near-black, and the status green darkens:
-     #3ecf8e on white is about 1.9:1 and fails contrast outright. */
-  --color-cream: #15171a;
+  /* The inverted panel is the theme's crimson (ivory text on it is about
+     5.3:1), and the status green darkens: #3ecf8e on a light page is about
+     1.9:1 and fails contrast outright. */
+  --color-cream: #c62f3e;
   --color-signal: #0f7a4c;
 
-  --glow: 10 12 16;
+  /* Light sources become a rose glow rather than a shadow. */
+  --glow: 232 72 98;
   --grain-blend: multiply;
 
-  /* The same treatment inverted: graphite rather than chrome. A bright metal
-     gradient on white would be invisible, so the stops darken and the band
-     order flips to keep a highlight running through the middle of the
-     letterforms. The white specular in .chrome-sweep still reads, because it
-     now crosses dark glyphs. */
+  /* The brushed-metal headings, inverted: polished garnet rather than
+     chrome. A bright metal gradient on a light page would be invisible, so
+     the stops darken and the band order flips to keep a highlight running
+     through the middle of the letterforms. The white specular in
+     .chrome-sweep still reads, because it now crosses dark glyphs. */
   --metal: linear-gradient(
     180deg,
-    #2b2b2b 0%,
-    #8c8c8c 32%,
-    #1f1f1f 54%,
-    #6e6e6e 72%,
-    #3a3a3a 100%
+    #4a1524 0%,
+    #b23a50 32%,
+    #2c0d17 54%,
+    #8a2c40 72%,
+    #53192a 100%
   );
-  --metal-shadow: rgb(0 0 0 / 0.16);
+  --metal-shadow: rgb(198 47 62 / 0.2);
+}
+
+/* ---------------------------------------------------------------------------
+   Light theme — living background
+
+   One fixed aurora sits behind the whole page: soft rose, apricot and lilac
+   pools over the ivory base, drifting very slowly. The chapters go
+   transparent so it reads as a single continuous backdrop rather than a
+   different colour per section; "surface" chapters keep their step as a
+   translucent white veil over it.
+
+   Everything here is scoped to html[data-theme="light"] and left outside
+   any @layer, so it outranks the layered utilities (.bg-ink, .bg-surface)
+   without touching the markup — and the dark theme never sees any of it.
+--------------------------------------------------------------------------- */
+html[data-theme="light"] body {
+  /* The page colour stays on <html>; the body goes clear so the aurora,
+     which sits behind it, is visible. */
+  background-color: transparent;
+}
+
+html[data-theme="light"] body::before {
+  content: "";
+  position: fixed;
+  inset: -12%;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(38% 34% at 14% 16%, rgb(255 150 170 / 0.4) 0%, transparent 70%),
+    radial-gradient(34% 38% at 88% 22%, rgb(255 190 140 / 0.42) 0%, transparent 70%),
+    radial-gradient(40% 36% at 78% 86%, rgb(196 168 255 / 0.34) 0%, transparent 70%),
+    radial-gradient(36% 40% at 18% 84%, rgb(255 214 150 / 0.32) 0%, transparent 70%),
+    radial-gradient(30% 26% at 50% 50%, rgb(255 170 185 / 0.2) 0%, transparent 72%);
+  animation: aurora-drift 38s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes aurora-drift {
+  from {
+    transform: translate3d(-2%, -1.5%, 0) scale(1) rotate(0deg);
+  }
+  to {
+    transform: translate3d(2%, 2%, 0) scale(1.08) rotate(4deg);
+  }
+}
+
+html[data-theme="light"] main > .bg-ink,
+html[data-theme="light"] footer.bg-ink {
+  background-color: transparent;
+}
+
+html[data-theme="light"] main > .bg-surface {
+  background-color: rgb(255 255 255 / 0.5);
+}
+
+/* Panels lift off the backdrop on a soft rose glow instead of a grey drop
+   shadow, with a hairline of white along the top edge. */
+html[data-theme="light"] .rounded-3xl[class*="bg-card"] {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 24px 48px -28px rgb(198 47 62 / 0.28),
+    0 2px 6px -2px rgb(198 47 62 / 0.08);
+}
+
+/* Solid buttons and the open service row get the same glow, a little
+   tighter, so the accents all read as one light source. */
+html[data-theme="light"] :is(a, button).rounded-full.bg-bone[class*="px-"] {
+  box-shadow: 0 10px 24px -12px rgb(198 47 62 / 0.55);
+}
+
+html[data-theme="light"] .bg-cream {
+  box-shadow: 0 22px 48px -26px rgb(198 47 62 / 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="light"] body::before {
+    animation: none;
+  }
 }
 
 @layer base {
