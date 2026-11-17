@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { ui } from "../../data/content";
 
 export type Theme = "dark" | "light";
@@ -62,7 +62,6 @@ function setTheme(next: Theme) {
  * again.
  */
 export default function ThemeToggle({ className }: { className?: string }) {
-  const reduce = useReducedMotion();
   const theme = useSyncExternalStore(
     subscribe,
     getSnapshot,
@@ -90,7 +89,7 @@ export default function ThemeToggle({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         initial={false}
-        animate={reduce ? undefined : { rotate: isLight ? 180 : 0 }}
+        animate={{ rotate: isLight ? 180 : 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         {isLight ? (

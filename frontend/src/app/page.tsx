@@ -3,12 +3,12 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import NavBar from "./components/NavBar";
+import Toolkit from "./components/Toolkit";
 import Header from "./components/Header";
 import About from "./components/About";
 import Services from "./components/Services";
 import Work from "./components/Work";
 import Labs from "./components/Labs";
-import Experience from "./components/Experience";
 import Game from "./components/Game";
 import Contact from "./components/Contact";
 import Footer from "./components/Footer";
@@ -48,9 +48,9 @@ export default function Page() {
         <Header portraitSrc={portraitSrc} />
         <About resumeHref={resumeHref} />
         <Services />
+        <Toolkit />
         <Labs />
         <Work />
-        <Experience />
         <Game />
         <Contact />
       </main>

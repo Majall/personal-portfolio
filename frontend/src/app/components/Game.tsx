@@ -2,109 +2,96 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Container, Section } from "./ui/Section";
-import { Reveal } from "./ui/Motion";
+import { ChapterHeading, Reveal, TextRoll } from "./ui/Motion";
 import { game } from "../../data/content";
-
-/* ---------------------------------------------------------------------------
-   A 5x5 dot-matrix alphabet, just the letters the two words need. Each string
-   is one row; "1" is a brick. Keeping it as text rather than coordinates
-   means the shapes are readable in the source — you can see the letters.
---------------------------------------------------------------------------- */
-const GLYPHS: Record<string, string[]> = {
-  H: ["10001", "10001", "11111", "10001", "10001"],
-  E: ["11111", "10000", "11110", "10000", "11111"],
-  L: ["10000", "10000", "10000", "10000", "11111"],
-  O: ["11111", "10001", "10001", "10001", "11111"],
-  W: ["10001", "10001", "10101", "11011", "10001"],
-  R: ["11110", "10001", "11110", "10010", "10001"],
-  D: ["11110", "10001", "10001", "10001", "11110"],
-};
-
-const GLYPH_W = 5;
-const GLYPH_H = 5;
-const LETTER_GAP = 1;
-const LINE_GAP = 1;
-
-type Brick = { col: number; row: number; alive: boolean };
-
-/** Lay the words out on a single grid of cells, and report the grid size. */
-function buildBricks(words: string[]): {
-  bricks: Brick[];
-  cols: number;
-  rows: number;
-} {
-  const bricks: Brick[] = [];
-
-  const lineWidth = (word: string) =>
-    word.length * GLYPH_W + (word.length - 1) * LETTER_GAP;
-  const cols = Math.max(...words.map(lineWidth));
-  const rows = words.length * GLYPH_H + (words.length - 1) * LINE_GAP;
-
-  words.forEach((word, lineIndex) => {
-    /* Centre each line on the widest one, so the block is symmetrical. */
-    const offsetX = Math.floor((cols - lineWidth(word)) / 2);
-    const offsetY = lineIndex * (GLYPH_H + LINE_GAP);
-
-    word.split("").forEach((char, charIndex) => {
-      const glyph = GLYPHS[char];
-      if (!glyph) return;
-      const charX = offsetX + charIndex * (GLYPH_W + LETTER_GAP);
-
-      glyph.forEach((rowBits, r) => {
-        rowBits.split("").forEach((bit, c) => {
-          if (bit === "1") {
-            bricks.push({ col: charX + c, row: offsetY + r, alive: true });
-          }
-        });
-      });
-    });
-  });
-
-  return { bricks, cols, rows };
-}
+import { ALLOWED, rasterize, type Brick } from "./game/font5x7";
 
 type Status = "idle" | "playing" | "won" | "lost";
 
+/** Read a live CSS token, so the canvas follows the theme. */
+function token(name: string, fallback: string) {
+  if (typeof window === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  return value || fallback;
+}
+
 /**
- * The easter egg: a brick-breaker whose bricks spell HELLO WORLD.
+ * The easter egg: a brick-breaker whose wall is text, rasterised through a
+ * 5x7 bitmap font — so whatever you type becomes the thing you knock down.
  *
- * Drawn on a canvas rather than in the DOM. There are around 150 bricks plus
- * a ball moving every frame; as DOM nodes that is 150 elements being
- * restyled per frame, where the canvas is one element and a few hundred
- * fills.
+ * Drawn on a canvas rather than in the DOM. The wall runs to a couple of
+ * hundred bricks plus a ball moving every frame; as DOM nodes that is a few
+ * hundred elements restyled per frame, where the canvas is one element and a
+ * few hundred fills.
  *
- * Nothing starts moving until the visitor presses Play, so this never runs a
- * loop in the background and never animates at people who did not ask for it
- * — which is also why it is safe under reduced motion: every frame it draws
- * is the direct result of an interaction.
+ * Nothing moves until the visitor launches the ball, so this never runs a
+ * loop in the background. That is also what makes it safe under reduced
+ * motion: every frame it draws is the direct result of an interaction, and
+ * the section renders as a still wall of text until asked otherwise.
  *
- * The whole section is optional and carries no information, so the canvas is
- * labelled and the rest is announced through a live region; a visitor who
+ * The whole thing is optional and carries no information, so the canvas is
+ * labelled and results are announced through a live region; a visitor who
  * cannot play it misses nothing.
  */
 const Game: React.FC = () => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [status, setStatus] = useState<Status>("idle");
 
-  /* Everything the loop mutates lives in a ref. Putting the ball in state
-     would re-render the whole section sixty times a second to redraw a
-     canvas that React does not manage anyway. */
+  const [lines, setLines] = useState<string[]>(game.defaultLines);
+  const [draft, setDraft] = useState<string[]>(game.defaultLines);
+  const [status, setStatus] = useState<Status>("idle");
+  const [lives, setLives] = useState(game.lives);
+  const [remaining, setRemaining] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [muted, setMuted] = useState(true);
+
+  /* Everything the frame loop mutates lives in a ref. Putting the ball in
+     state would re-render the whole section sixty times a second to redraw a
+     canvas React does not manage anyway. */
   const world = useRef({
     w: 0,
     h: 0,
     bricks: [] as Brick[],
-    cols: 0,
-    rows: 0,
+    cols: 1,
+    rows: 1,
     cell: 0,
     gridX: 0,
     gridY: 0,
-    paddleX: 0.5, // 0–1 across the field
+    paddleX: 0.5,
     ball: { x: 0, y: 0, vx: 0, vy: 0, r: 4 },
     running: false,
     raf: 0,
     last: 0,
   });
+
+  const audio = useRef<AudioContext | null>(null);
+
+  const beep = useCallback(
+    (frequency: number, length = 0.05) => {
+      if (muted) return;
+      try {
+        audio.current ??= new AudioContext();
+        const ctx = audio.current;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "square";
+        osc.frequency.value = frequency;
+        gain.gain.value = 0.04;
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(
+          0.0001,
+          ctx.currentTime + length,
+        );
+        osc.stop(ctx.currentTime + length);
+      } catch {
+        /* No audio available: the game is still perfectly playable silent. */
+      }
+    },
+    [muted],
+  );
 
   /* ---- Geometry ---- */
   const layout = useCallback(() => {
@@ -120,20 +107,19 @@ const Game: React.FC = () => {
     canvas.height = Math.round(h * dpr);
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
-
-    const ctx = canvas.getContext("2d");
-    ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvas.getContext("2d")?.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const s = world.current;
     s.w = w;
     s.h = h;
 
-    /* The block of letters takes ~68% of the width, centred, sitting in the
-       upper half so there is room to play underneath it. */
-    const target = w * 0.68;
-    s.cell = target / s.cols;
+    /* The wall takes ~82% of the width, and is capped by height too so a long
+       line cannot push the bricks down over the paddle. */
+    const byWidth = (w * 0.82) / s.cols;
+    const byHeight = (h * 0.5) / s.rows;
+    s.cell = Math.min(byWidth, byHeight);
     s.gridX = (w - s.cols * s.cell) / 2;
-    s.gridY = h * 0.1;
+    s.gridY = h * 0.08;
     s.ball.r = Math.max(3.5, Math.min(6, w * 0.006));
   }, []);
 
@@ -142,40 +128,36 @@ const Game: React.FC = () => {
     s.ball.x = s.paddleX * s.w;
     s.ball.y = s.h - s.h * 0.1 - 14;
     const speed = Math.max(260, s.h * 0.78);
-    /* Always launched upward, angled slightly so the first bounce is not a
-       vertical corridor. */
     s.ball.vx = speed * 0.45 * (Math.random() > 0.5 ? 1 : -1);
     s.ball.vy = -speed;
   }, []);
 
-  const resetBricks = useCallback(() => {
-    const built = buildBricks(game.word);
-    const s = world.current;
-    s.bricks = built.bricks;
-    s.cols = built.cols;
-    s.rows = built.rows;
-  }, []);
+  const buildWall = useCallback(
+    (source: string[]) => {
+      const built = rasterize(source);
+      const s = world.current;
+      s.bricks = built.bricks;
+      s.cols = Math.max(built.cols, 1);
+      s.rows = Math.max(built.rows, 1);
+      setTotal(built.bricks.length);
+      setRemaining(built.bricks.length);
+    },
+    [],
+  );
 
   /* ---- Drawing ---- */
   const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
+    const ctx = canvasRef.current?.getContext("2d");
     const s = world.current;
     if (!ctx) return;
 
     ctx.clearRect(0, 0, s.w, s.h);
 
-    /* Near-white pieces vanish on the light page, so that theme draws them
-       in garnet instead. Dark keeps the original value untouched. */
-    const piece =
-      document.documentElement.dataset.theme === "light"
-        ? "#7a2238"
-        : "#f4f4f4";
-
-    /* Bricks */
+    const ink = token("--color-bone", "#f4f4f4");
     const pad = s.cell * 0.16;
-    const size = s.cell - pad;
-    ctx.fillStyle = piece;
+    const size = Math.max(s.cell - pad, 1);
+
+    ctx.fillStyle = ink;
     for (const brick of s.bricks) {
       if (!brick.alive) continue;
       ctx.fillRect(
@@ -186,7 +168,6 @@ const Game: React.FC = () => {
       );
     }
 
-    /* Paddle */
     const paddleW = Math.max(70, s.w * 0.14);
     const paddleH = Math.max(7, s.h * 0.016);
     const paddleY = s.h - s.h * 0.1;
@@ -194,12 +175,19 @@ const Game: React.FC = () => {
       Math.max(s.paddleX * s.w - paddleW / 2, 0),
       s.w - paddleW,
     );
-    ctx.fillStyle = piece;
+
+    /* The paddle picks up the skills grid's accents, which is the only other
+       chromatic thing on the page — it reads as deliberate rather than a
+       stray colour. */
+    const grad = ctx.createLinearGradient(paddleLeft, 0, paddleLeft + paddleW, 0);
+    grad.addColorStop(0, token("--accent-net", "#8bd450"));
+    grad.addColorStop(1, token("--accent-dev", "#46c8d8"));
+    ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.roundRect(paddleLeft, paddleY, paddleW, paddleH, paddleH / 2);
     ctx.fill();
 
-    /* Ball */
+    ctx.fillStyle = ink;
     ctx.beginPath();
     ctx.arc(s.ball.x, s.ball.y, s.ball.r, 0, Math.PI * 2);
     ctx.fill();
@@ -214,20 +202,21 @@ const Game: React.FC = () => {
       ball.x += ball.vx * dt;
       ball.y += ball.vy * dt;
 
-      /* Walls */
       if (ball.x - ball.r < 0) {
         ball.x = ball.r;
         ball.vx = Math.abs(ball.vx);
+        beep(220);
       } else if (ball.x + ball.r > s.w) {
         ball.x = s.w - ball.r;
         ball.vx = -Math.abs(ball.vx);
+        beep(220);
       }
       if (ball.y - ball.r < 0) {
         ball.y = ball.r;
         ball.vy = Math.abs(ball.vy);
+        beep(220);
       }
 
-      /* Paddle */
       const paddleW = Math.max(70, s.w * 0.14);
       const paddleH = Math.max(7, s.h * 0.016);
       const paddleY = s.h - s.h * 0.1;
@@ -245,17 +234,18 @@ const Game: React.FC = () => {
       ) {
         ball.y = paddleY - ball.r;
         /* Where it lands on the paddle sets the outgoing angle, so the player
-           can aim instead of only keeping it alive. */
+           can aim rather than only keep it alive. */
         const hit = (ball.x - (paddleLeft + paddleW / 2)) / (paddleW / 2);
         const speed = Math.hypot(ball.vx, ball.vy);
-        const angle = hit * 1.05; // radians from vertical, capped by hit ∈ [-1,1]
+        const angle = hit * 1.05;
         ball.vx = speed * Math.sin(angle);
         ball.vy = -Math.abs(speed * Math.cos(angle));
+        beep(380);
       }
 
-      /* Bricks — the ball is small relative to a cell, so testing the cell
-         under the ball's centre is enough and costs one lookup rather than a
-         pass over every brick. */
+      /* The ball is small relative to a cell, so testing the cell under its
+         centre is enough and costs one lookup rather than a pass over the
+         whole wall. */
       const col = Math.floor((ball.x - s.gridX) / s.cell);
       const row = Math.floor((ball.y - s.gridY) / s.cell);
       const hitBrick = s.bricks.find(
@@ -264,7 +254,9 @@ const Game: React.FC = () => {
 
       if (hitBrick) {
         hitBrick.alive = false;
-        /* Bounce off whichever face the ball entered through. */
+        setRemaining((n) => Math.max(n - 1, 0));
+        beep(640, 0.04);
+
         const bx = s.gridX + col * s.cell;
         const by = s.gridY + row * s.cell;
         const overlapX = Math.min(
@@ -284,83 +276,85 @@ const Game: React.FC = () => {
         }
       }
 
-      /* Dropped it */
       if (ball.y - ball.r > s.h) {
         s.running = false;
-        setStatus("lost");
+        beep(140, 0.18);
+        setLives((n) => {
+          const left = n - 1;
+          setStatus(left > 0 ? "idle" : "lost");
+          return Math.max(left, 0);
+        });
       }
     },
-    [],
+    [beep],
   );
 
-  const start = useCallback(() => {
+  const launch = useCallback(() => {
     const s = world.current;
-    if (!s.bricks.some((b) => b.alive)) resetBricks();
+    if (s.running || status === "won" || status === "lost") return;
+    if (!s.bricks.some((b) => b.alive)) return;
+
     layout();
     resetBall();
     s.running = true;
     s.last = performance.now();
     setStatus("playing");
 
-    /* Declared here rather than as its own useCallback so it can schedule
-       itself by name without the hook depending on its own identity. */
     const tick = (now: number) => {
       if (!s.running) return;
-
       /* Clamped so a backgrounded tab does not resume with one enormous step
          that tunnels the ball through the paddle. */
       const dt = Math.min((now - s.last) / 1000, 1 / 30);
       s.last = now;
-
       step(dt);
       draw();
-
       if (s.running) s.raf = requestAnimationFrame(tick);
     };
 
     s.raf = requestAnimationFrame(tick);
-  }, [draw, layout, resetBall, resetBricks, step]);
+  }, [draw, layout, resetBall, status, step]);
 
-  const restart = useCallback(() => {
-    const s = world.current;
-    cancelAnimationFrame(s.raf);
-    s.running = false;
-    resetBricks();
-    layout();
-    resetBall();
-    draw();
-    setStatus("idle");
-  }, [draw, layout, resetBall, resetBricks]);
+  const reset = useCallback(
+    (source: string[]) => {
+      const s = world.current;
+      cancelAnimationFrame(s.raf);
+      s.running = false;
+      buildWall(source);
+      layout();
+      resetBall();
+      draw();
+      setLives(game.lives);
+      setStatus("idle");
+    },
+    [buildWall, draw, layout, resetBall],
+  );
 
   /* ---- Wiring ---- */
   useEffect(() => {
-    resetBricks();
-    layout();
-    resetBall();
-    draw();
-
+    reset(lines);
     const onResize = () => {
       layout();
       draw();
     };
     window.addEventListener("resize", onResize);
-
-    /* Repaint when the theme flips, so an idle board picks up the new
-       piece colour without waiting for the next frame. */
-    const themeWatcher = new MutationObserver(() => draw());
-    themeWatcher.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    });
-
     const s = world.current;
     return () => {
       window.removeEventListener("resize", onResize);
-      themeWatcher.disconnect();
       cancelAnimationFrame(s.raf);
       s.running = false;
     };
-  }, [draw, layout, resetBall, resetBricks]);
+    /* Only when the wall's text changes — `reset` is stable. */
+  }, [lines, reset, layout, draw]);
+
+  /* Redraw when the ball is parked, so losing a life or switching theme
+     leaves a correct still frame. */
+  useEffect(() => {
+    if (status !== "playing") {
+      layout();
+      resetBall();
+      draw();
+    }
+  }, [status, layout, resetBall, draw]);
 
   /* Pointer and touch steering. */
   useEffect(() => {
@@ -390,18 +384,30 @@ const Game: React.FC = () => {
     };
   }, [draw]);
 
-  /* Keyboard steering, only while the field has focus — otherwise the arrow
+  /* Keyboard, only while the field has focus — otherwise space and the arrow
      keys would stop scrolling the page for everyone. */
   const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      launch();
+      return;
+    }
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
-    const delta = e.key === "ArrowLeft" ? -0.05 : 0.05;
     world.current.paddleX = Math.min(
-      Math.max(world.current.paddleX + delta, 0),
+      Math.max(world.current.paddleX + (e.key === "ArrowLeft" ? -0.05 : 0.05), 0),
       1,
     );
     if (!world.current.running) draw();
   };
+
+  const clean = (value: string) =>
+    value
+      .toUpperCase()
+      .split("")
+      .filter((c) => ALLOWED.test(c))
+      .join("")
+      .slice(0, game.maxLineLength);
 
   const message =
     status === "won"
@@ -411,63 +417,155 @@ const Game: React.FC = () => {
         : "";
 
   return (
-    <Section className="py-24 sm:py-32">
-      <Container className="relative z-10">
-        {/* ---- Tagline and controls ---- */}
-        <div className="flex items-start justify-between gap-6">
+    <Section id="play" surface className="py-24 sm:py-32">
+      <Container>
+        <div className="flex flex-col items-center text-center">
           <Reveal>
             <p className="label text-muted">{game.label}</p>
-            <p className="mt-4 inline-block border-b border-line pb-2 text-sm font-medium text-bone">
-              {game.tagline}
+          </Reveal>
+          <ChapterHeading
+            text={game.heading}
+            accent={game.headingAccent}
+            className="chrome-text mt-5 text-chapter"
+          />
+          <Reveal delay={0.1}>
+            <p className="mx-auto mt-6 max-w-[52ch] text-sm leading-relaxed text-muted">
+              {game.intro}
             </p>
           </Reveal>
+        </div>
+
+        {/* ---- Meta bar ---- */}
+        <div className="mt-14 flex flex-wrap items-center gap-x-5 gap-y-3 border-b border-line pb-4">
+          <span className="label text-bone">{game.matrixLabel}</span>
+          <span className="h-px flex-1 bg-line" aria-hidden="true" />
+
+          <span className="label tabular-nums text-muted">
+            {remaining}/{total}
+          </span>
 
           <button
             type="button"
-            onClick={restart}
-            aria-label={game.restartLabel}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-bone transition-colors hover:border-bone"
+            onClick={() => setMuted((m) => !m)}
+            aria-label={muted ? game.soundOff : game.soundOn}
+            aria-pressed={!muted}
+            className="text-muted transition-colors hover:text-bone"
           >
-            <span aria-hidden="true" className="flex gap-1">
-              <span className="block h-1 w-1 rounded-full bg-current" />
-              <span className="block h-1 w-1 rounded-full bg-current" />
-              <span className="block h-1 w-1 rounded-full bg-current" />
-            </span>
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" />
+              {muted ? (
+                <path d="M16 9.5l4 5M20 9.5l-4 5" />
+              ) : (
+                <path d="M16 9.6a3.5 3.5 0 010 4.8M18.4 7.4a7 7 0 010 9.2" />
+              )}
+            </svg>
           </button>
+
+          <span className="flex items-center gap-2">
+            <span className="label text-muted">{game.ballsLabel}</span>
+            <span className="flex gap-1.5" aria-hidden="true">
+              {Array.from({ length: game.lives }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`block h-2 w-2 rounded-full transition-colors ${
+                    i < lives ? "bg-signal" : "bg-line"
+                  }`}
+                />
+              ))}
+            </span>
+            <span className="sr-only">
+              {lives} of {game.lives}
+            </span>
+          </span>
         </div>
 
         {/* ---- Field ---- */}
         <div
           ref={wrapRef}
           tabIndex={0}
+          role="button"
+          aria-label={game.launchHint}
           onKeyDown={onKeyDown}
-          className="relative mt-10 aspect-[16/10] w-full touch-none select-none rounded-3xl border border-line bg-ink sm:aspect-[16/8]"
+          onClick={launch}
+          className="relative mt-6 aspect-[16/10] w-full touch-none select-none overflow-hidden rounded-3xl border border-line bg-ink sm:aspect-[16/8]"
         >
           <canvas
             ref={canvasRef}
             role="img"
-            aria-label={`${game.word.join(" ")} — ${game.srDescription}`}
+            aria-label={`${lines.join(" ")} — ${game.srDescription}`}
             className="absolute inset-0 h-full w-full"
           />
 
-          {/* Play overlay, shown whenever the ball is not in motion.
-              It is offset with `bottom` rather than a percentage padding:
-              a percentage padding resolves against the field's *width*, which
-              on a wide screen pushes the button up into the bricks. */}
           {status !== "playing" && (
-            <div className="absolute inset-x-0 bottom-[20%] flex justify-center">
-              <button
-                type="button"
-                onClick={start}
-                className="rounded-full border border-line bg-ink/70 px-8 py-3.5 label text-bone backdrop-blur transition-colors hover:border-bone hover:bg-bone hover:text-ink"
-              >
-                {status === "idle" ? game.playLabel : game.restartLabel}
-              </button>
-            </div>
+            <p className="label pointer-events-none absolute inset-x-0 bottom-[18%] text-center text-muted">
+              {status === "lost" ? game.lostLabel : game.launchHint}
+            </p>
           )}
         </div>
 
-        {/* ---- Hint and result ---- */}
+        {/* ---- Custom text ---- */}
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+          {draft.map((line, i) => (
+            <div key={i} className="min-w-0 flex-1">
+              <label htmlFor={`game-line-${i}`} className="sr-only">
+                {game.lineLabels[i]}
+              </label>
+              <input
+                id={`game-line-${i}`}
+                value={line}
+                onChange={(e) =>
+                  setDraft((d) =>
+                    d.map((v, j) => (j === i ? clean(e.target.value) : v)),
+                  )
+                }
+                placeholder={game.lineLabels[i]}
+                spellCheck={false}
+                className="w-full rounded-full border border-line bg-card px-5 py-3 font-mono text-sm uppercase tracking-wider text-bone outline-none transition-colors placeholder:text-muted focus:border-bone"
+              />
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setLines(draft)}
+            className="group shrink-0 rounded-full bg-bone px-6 py-3.5 label text-ink transition-opacity hover:opacity-85"
+          >
+            <TextRoll label={game.rasterizeLabel} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(game.defaultLines);
+              setLines(game.defaultLines);
+            }}
+            aria-label={game.resetLabel}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-line text-muted transition-colors hover:border-bone hover:text-bone"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 11.5a8 8 0 10-2.3 6.2M20 5.5v6h-6" />
+            </svg>
+          </button>
+        </div>
+
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
           <p className="label text-muted">{game.hint}</p>
           <p role="status" aria-live="polite" className="label text-signal">

@@ -72,8 +72,16 @@ const Work: React.FC = () => {
             <Reveal key={project.id} y={40}>
               <article className="grid items-center gap-8 border-t border-line py-12 md:grid-cols-2 md:gap-16 md:py-16">
                 {/* Screenshot */}
+                {/* 16/10 and `object-contain`, not 4/3 and `object-cover`.
+                    These are wide browser screenshots — they run from about
+                    1.6:1 to 2:1 — so a 4/3 frame with cover scaled them to
+                    fill and sliced the sides off. Contain shows the whole
+                    shot; 16/10 sits at the narrow end of the real range, so
+                    the widest ones letterbox only slightly and the rest fill
+                    the frame almost exactly. The surface behind makes that
+                    letterboxing read as a mount rather than a gap. */}
                 <div
-                  className={`relative aspect-[4/3] w-full overflow-hidden bg-surface ${
+                  className={`relative aspect-[16/10] w-full overflow-hidden bg-surface ${
                     flipped ? "md:order-2" : "md:order-1"
                   }`}
                 >
@@ -83,7 +91,7 @@ const Work: React.FC = () => {
                       alt={`${project.titleLead} ${project.titleAccent} screenshot`}
                       fill
                       sizes="(max-width: 768px) 100vw, 50vw"
-                      className="object-cover object-top transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.04]"
+                      className="object-contain transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.03]"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">

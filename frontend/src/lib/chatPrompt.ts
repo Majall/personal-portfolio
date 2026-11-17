@@ -6,7 +6,7 @@ import {
   languages,
   strengths,
   services,
-  skillGroups,
+  skillCategories,
   labs,
   labsSection,
   projects,
@@ -58,8 +58,11 @@ ${services
   .join("\n")}`,
 
   `## Technical skills
-${skillGroups
-  .map((group) => `- ${group.label}: ${group.items.join(", ")}`)
+${skillCategories
+  .map(
+    (category) =>
+      `- ${category.label}: ${category.items.map((skill) => skill.name).join(", ")}`,
+  )
   .join("\n")}`,
 
   `## Networking labs (Cisco Packet Tracer)

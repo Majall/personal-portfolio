@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Section, SectionLabel, Container } from "./ui/Section";
 import { Reveal } from "./ui/Motion";
@@ -116,7 +116,6 @@ const TOPOLOGIES: { nodes: [number, number][]; links: [number, number][] }[] = [
 ];
 
 const LabFigure: React.FC<{ index: number }> = ({ index }) => {
-  const reduce = useReducedMotion();
   const topology = TOPOLOGIES[index % TOPOLOGIES.length];
 
   return (
@@ -165,7 +164,7 @@ const LabFigure: React.FC<{ index: number }> = ({ index }) => {
               r="3.6"
               className="text-bone/10"
               fill="currentColor"
-              animate={reduce ? undefined : { opacity: [0.15, 0.55, 0.15] }}
+              animate={{ opacity: [0.15, 0.55, 0.15] }}
               transition={{
                 duration: 3.4,
                 repeat: Infinity,

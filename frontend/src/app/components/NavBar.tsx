@@ -173,7 +173,7 @@ const NavBar: React.FC<{ resumeHref?: string | null }> = ({ resumeHref }) => {
             role="dialog"
             aria-modal="true"
             aria-label={ui.navAriaLabel}
-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: -16 }}
+            initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -16 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -208,7 +208,7 @@ const NavBar: React.FC<{ resumeHref?: string | null }> = ({ resumeHref }) => {
                 {nav.map((link, i) => (
                   <motion.li
                     key={link.id}
-                    initial={reduce ? false : { opacity: 0, x: 24 }}
+                    initial={{ opacity: 0, x: 24 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.05 * i, duration: 0.45 }}
                     className="border-b border-line"

@@ -8,6 +8,7 @@ import {
 import "./globals.css";
 import IntroLoader from "./components/IntroLoader";
 import SmoothScroll from "./components/SmoothScroll";
+import MotionProvider from "./components/ui/Motion.config";
 import ChatBot from "./components/ChatBot";
 import { meta, ui } from "../data/content";
 
@@ -98,8 +99,10 @@ export default function RootLayout({
         </a>
 
         <SmoothScroll />
-        <IntroLoader />
-        {children}
+        <MotionProvider>
+          <IntroLoader />
+          {children}
+        </MotionProvider>
         <ChatBot />
 
         {/* Film grain sits above the page and below the loader. */}

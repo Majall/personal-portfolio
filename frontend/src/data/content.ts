@@ -81,7 +81,6 @@ export const nav: NavLink[] = [
   { name: "Service", href: "#service", id: "service" },
   { name: "Labs", href: "#labs", id: "labs" },
   { name: "Projects", href: "#project", id: "project" },
-  { name: "Experience", href: "#experience", id: "experience" },
   { name: "Contact", href: "#contact", id: "contact" },
 ];
 
@@ -104,9 +103,15 @@ export const hero = {
    */
   word: "PORTFOLIO",
 
-  /** The role, split so the last word can take the italic serif. */
+  /** The role, split so the last word can take the italic serif. Used by
+      the intro loader's closing frame. */
   roleLead: "IT Support",
   roleAccent: "Engineer",
+
+  /** Typed out one after another under the hero word. The first is rendered
+      complete on the server, so it is the one a visitor sees if motion is
+      reduced — put the most important discipline first. */
+  roleCycle: ["IT Support & Networking", "Software Development"],
 
   /** Announced in place of the decorative word for assistive tech. */
   srHeadline: "Majall — IT Support Engineer",
@@ -144,6 +149,38 @@ export const about = {
     { value: "HNDIT", label: "Graduate — SLIATE" },
   ] satisfies Highlight[],
 
+  /* The disciplines pill above the heading. */
+  badge: "IT Support · Networking · Software Development",
+
+  /* Terms lifted out of `bio` and set in full-strength text, so the
+     paragraph can be skimmed for capability without being rewritten into a
+     list. Matched longest-first in About.tsx, so "Windows Server" wins over
+     "Windows" where the two overlap. Anything here that is not literally
+     present in `bio` is simply ignored. */
+  bioHighlights: [
+    "IT Support",
+    "IT Operations",
+    "Windows",
+    "TCP/IP",
+    "subnetting",
+    "VLANs",
+    "switching",
+    "routing",
+    "DNS",
+    "DHCP",
+    "NAT",
+    "ACLs",
+    "Wi-Fi",
+    "Cisco CCNA 200-301",
+    "Cisco Packet Tracer",
+    "PowerShell",
+    "Python",
+  ],
+
+  toolkitLabel: "My toolkit",
+  journeyLabel: "My journey",
+  socialLabel: "Social links",
+
   ghostWord: "About",
   resumeLabel: "Download résumé",
   availabilityLabel: "Availability",
@@ -161,18 +198,18 @@ export interface Experience {
 
 export const experience: Experience[] = [
   {
-    role: "Full Stack Developer Intern",
-    company: "Witsberry (Pvt) Ltd",
+    role: "Full Stack Developer",
+    company: "Witsberry Pvt Ltd",
     type: "On-site · Full-time internship",
     dates: "September 2025 – November 2026",
     points: [
-      "Diagnosed and resolved technical faults across applications, servers and databases, from first report to verified resolution.",
-      "Investigated and debugged system problems, finding root causes and applying fixes that improved reliability and reduced recurring incidents.",
-      "Queried and maintained SQL and NoSQL databases, protecting data integrity and resolving data issues raised by users and colleagues.",
+      "Built and maintained backend services and REST APIs with Node.js, NestJS and Express.",
+      "Modelled and queried MySQL, PostgreSQL and MongoDB databases, protecting data integrity and resolving data issues raised by users and colleagues.",
+      "Investigated and debugged application, server and database problems, finding root causes and applying fixes that improved reliability.",
+      "Integrated backend endpoints with React and Next.js front ends.",
       "Supported deployment, configuration and troubleshooting across Linux and cloud-hosted servers.",
       "Used Git and GitHub for version control and change tracking in a professional team.",
-      "Wrote technical notes and documentation that supported troubleshooting and knowledge sharing.",
-      "Worked on-site with the team, communicating findings clearly in English with minimal supervision.",
+      "Worked on-site with the team, writing technical notes and communicating findings clearly in English with minimal supervision.",
     ],
   },
 ];
@@ -214,6 +251,67 @@ export const education: Education[] = [
 export const educationSection = {
   label: "Education",
   modulesLabel: "Key modules",
+};
+
+/* ------------------------------------------------------------------ journey -- */
+
+/**
+ * One timeline covering both study and work.
+ *
+ * The entries are built from `education` and `experience` rather than being
+ * retyped, so the CV data stays in one place and a change to a date or a
+ * bullet cannot leave the timeline disagreeing with the rest of the site.
+ *
+ * Ordered oldest-first: the diploma starts in 2023 and the job starts in 2025,
+ * so reading top to bottom follows the career forwards.
+ */
+export interface JourneyEntry {
+  id: string;
+  kind: "education" | "experience";
+  tag: string;
+  dates: string;
+  title: string;
+  org: string;
+  /** A one-line summary under the organisation. */
+  summary?: string;
+  /** Detail bullets, shown only where there are any. */
+  points?: string[];
+  /** Chips under the body — key modules for study, nothing for work. */
+  chips?: string[];
+  chipsLabel?: string;
+}
+
+export const journey: JourneyEntry[] = [
+  ...education.map((item, i) => ({
+    id: `education-${i}`,
+    kind: "education" as const,
+    tag: "Education",
+    dates: item.dates,
+    title: item.qualification,
+    org: item.institution,
+    chips: item.modules,
+    chipsLabel: educationSection.modulesLabel,
+  })),
+  ...experience.map((item, i) => ({
+    id: `experience-${i}`,
+    kind: "experience" as const,
+    tag: "Experience",
+    dates: item.dates,
+    title: item.role,
+    org: item.company,
+    summary: item.type,
+    points: item.points,
+  })),
+];
+
+export const journeySection = {
+  label: "My journey",
+  index: "01",
+  eyebrow: "Professional record",
+  heading: "Where I've",
+  headingAccent: "been",
+  note: "Study and work, in the order it happened.",
+  ghostWord: "Path",
 };
 
 /* -------------------------------------------------- languages & strengths -- */
@@ -343,81 +441,155 @@ export const servicesSection = {
 
 /* ----------------------------------------------------------------- skills -- */
 
-export interface SkillGroup {
-  key: string;
-  label: string;
-  note: string;
-  items: string[];
+/* ---------------------------------------------------------------------------
+   Skills, as four disciplines of individual items.
+
+   Every entry here already appears somewhere else in this file — in the old
+   toolkit groups, in a project's `tech` list, or in an experience bullet.
+   Compound chips were split into their parts ("DHCP & DNS" became two) rather
+   than anything new being added, so the grid stays an honest re-cut of what is
+   claimed elsewhere on the page.
+
+   `icon` names a glyph drawn inline in Toolkit.tsx. They are deliberately
+   generic shapes rather than brand marks: shipping third-party logos means
+   shipping their trademarks, and a wrong-coloured logo looks worse than a
+   clean symbol.
+--------------------------------------------------------------------------- */
+
+export type SkillIcon =
+  | "code"
+  | "component"
+  | "server"
+  | "database"
+  | "api"
+  | "terminal"
+  | "network"
+  | "route"
+  | "globe"
+  | "shield"
+  | "windows"
+  | "users"
+  | "folder"
+  | "key"
+  | "wrench"
+  | "git"
+  | "box"
+  | "wifi";
+
+export interface Skill {
+  name: string;
+  icon: SkillIcon;
 }
 
-export const skillGroups: SkillGroup[] = [
+export interface SkillCategory {
+  key: string;
+  label: string;
+  /** CSS custom property holding this discipline's accent colour. */
+  accent: string;
+  items: Skill[];
+}
+
+export const skillCategories: SkillCategory[] = [
+  {
+    key: "software",
+    label: "Software Development",
+    accent: "var(--accent-dev)",
+    items: [
+      { name: "Full-stack development", icon: "code" },
+      { name: "Backend development", icon: "server" },
+      { name: "REST APIs", icon: "api" },
+      { name: "React", icon: "component" },
+      { name: "Next.js", icon: "component" },
+      { name: "Node.js", icon: "server" },
+      { name: "NestJS", icon: "server" },
+      { name: "Express.js", icon: "server" },
+      { name: "JavaScript", icon: "code" },
+      { name: "PHP", icon: "code" },
+      { name: "Laravel", icon: "code" },
+      { name: "MySQL", icon: "database" },
+      { name: "PostgreSQL", icon: "database" },
+      { name: "MongoDB", icon: "database" },
+      { name: "Prisma", icon: "database" },
+      { name: "Tailwind CSS", icon: "component" },
+      { name: "Socket.IO", icon: "network" },
+    ],
+  },
   {
     key: "networking",
     label: "Networking",
-    note: "Addressing, switching, routing and services",
+    accent: "var(--accent-net)",
     items: [
-      "TCP/IP",
-      "IPv4/IPv6",
-      "Subnetting",
-      "VLSM",
-      "VLANs",
-      "Switching",
-      "Routing",
-      "DNS",
-      "DHCP",
-      "NAT",
-      "ACLs",
-      "Wi-Fi",
-      "Cisco IOS",
-      "Packet Tracer",
+      { name: "TCP/IP", icon: "network" },
+      { name: "IPv4 addressing", icon: "network" },
+      { name: "Subnetting", icon: "route" },
+      { name: "VLANs", icon: "network" },
+      { name: "Trunking", icon: "route" },
+      { name: "Inter-VLAN routing", icon: "route" },
+      { name: "DHCP", icon: "globe" },
+      { name: "DNS", icon: "globe" },
+      { name: "NAT", icon: "route" },
+      { name: "ACL fundamentals", icon: "shield" },
+      { name: "Cisco IOS CLI", icon: "terminal" },
+      { name: "Cisco Packet Tracer", icon: "network" },
     ],
   },
   {
-    key: "systems",
-    label: "Systems",
-    note: "Operating systems, accounts and automation",
+    key: "windows",
+    label: "Windows & System Administration",
+    accent: "var(--accent-sys)",
     items: [
-      "Windows",
-      "Linux",
-      "PowerShell",
-      "Bash",
-      "User account management",
-      "Docker",
+      { name: "Windows 10 / 11", icon: "windows" },
+      { name: "Windows Server", icon: "server" },
+      { name: "Active Directory (AD DS)", icon: "users" },
+      { name: "Organizational Units (OUs)", icon: "folder" },
+      { name: "User & group management", icon: "users" },
+      { name: "Group Policy (GPO)", icon: "key" },
+      { name: "Domain joining", icon: "network" },
+      { name: "Shared folder permissions", icon: "folder" },
+      { name: "Hardware & software troubleshooting", icon: "wrench" },
+      { name: "Linux", icon: "terminal" },
     ],
   },
   {
-    key: "data-dev",
-    label: "Data & Dev",
-    note: "Databases, languages and version control",
+    key: "tools",
+    label: "Tools & Technologies",
+    accent: "var(--accent-tools)",
     items: [
-      "SQL",
-      "MySQL",
-      "PostgreSQL",
-      "MongoDB",
-      "Python",
-      "Laravel",
-      "React",
-      "Node.js",
-      "Git",
-      "GitHub",
+      { name: "Git & GitHub", icon: "git" },
+      { name: "Vite", icon: "box" },
+      { name: "Prisma", icon: "database" },
+      { name: "Neon", icon: "database" },
     ],
   },
 ];
+
+/** Total across every discipline, for the "all" tab. */
+export const skillCount: number = skillCategories.reduce(
+  (total, category) => total + category.items.length,
+  0,
+);
 
 export const skillsSection = {
   label: "Technical skills",
   note: "Grouped by discipline.",
 };
 
-/** Flat list for the scrolling tech strip below the hero. */
-export const techStrip: string[] = skillGroups.flatMap((group) => group.items);
-
 /* The strip renders one marquee row per group, alternating direction. Each
    row is its own discipline, so the rows stay legible as categories rather
    than becoming one undifferentiated scroll of words. */
-export const stackSection = {
-  label: "The stack",
-  note: "Everything I work with day to day.",
+/* The toolkit chapter: one card per discipline, each listing its skills as
+   chips with a live count in the card header. */
+export const toolkitSection = {
+  label: "My toolkit",
+  index: "03",
+  eyebrow: "Capabilities",
+  heading: "What I",
+  headingAccent: "know",
+  note: "Grouped by discipline, with everything I work with listed out rather than summarised.",
+  countLabel: "skills",
+  allLabel: "All skills",
+  filterAria: "Filter skills by discipline",
+  ghostWord: "Stack",
 };
 
 /* ------------------------------------------------------------------- labs -- */
@@ -642,7 +814,7 @@ export const contact = {
     elsewhere: "Elsewhere",
   },
   eyebrow: "Open to work & collaboration",
-  index: "06",
+  index: "05",
   heading: "Let's",
   headingAccent: "talk",
   ghostWord: "Contact",
@@ -688,16 +860,34 @@ export const contact = {
 
 export const game = {
   label: "Easter egg",
-  tagline: "Break it if you can. It still ships.",
-  /** Spelled out in bricks on a dot-matrix grid. */
-  word: ["HELLO", "WORLD"],
-  playLabel: "Play",
-  restartLabel: "Restart",
+  heading: "Break it if you",
+  headingAccent: "can",
+  intro:
+    "A wall of pixels, one ball, three lives. Move your mouse — or use ← → — to steer the paddle, then type your own text and break that too.",
+
+  matrixLabel: "Destructible 5×7 bitmap font matrix",
+
+  /* Networking by default, because this sits on an IT support portfolio and
+     a ping to loopback is the first thing anyone types when something is
+     broken. Both lines are editable at runtime. */
+  defaultLines: ["PING", "127.0.0.1"],
+  /* Past this the glyphs get too small to hit on a phone. */
+  maxLineLength: 12,
+  lives: 3,
+
+  ballsLabel: "Balls",
+  launchHint: "Click, tap or press space to launch",
+  rasterizeLabel: "Rasterize custom text",
+  resetLabel: "Reset the wall",
+  lineLabels: ["First line", "Second line"],
+  soundOn: "Mute sound",
+  soundOff: "Unmute sound",
+
   clearedLabel: "Cleared — it still ships.",
-  lostLabel: "Dropped it. Try again.",
+  lostLabel: "Out of balls. Reset and go again.",
   hint: "Move the paddle with your mouse, the arrow keys, or a finger.",
   srDescription:
-    "A decorative brick-breaker game spelling HELLO WORLD. Entirely optional — nothing on this page depends on playing it.",
+    "A decorative brick-breaker game whose wall spells out editable text. Entirely optional — nothing on this page depends on playing it.",
 };
 
 /* ------------------------------------------------------------------- chat -- */

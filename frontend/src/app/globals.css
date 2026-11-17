@@ -90,6 +90,18 @@
   --glow: 225 45 60;
   --grain-blend: screen;
 
+  /* Per-discipline accents for the skills grid — the only chromatic colours
+     on the site, scoped to that one section. Each discipline owns a hue,
+     carried by its dot, its card icons and the rule under each card, so the
+     grid can be scanned by colour without needing a legend.
+
+     Warm-shifted and slightly muted rather than the usual saturated
+     cyan/lime, which would fight the crimson page they sit on. */
+  --accent-dev: #46c8d8;
+  --accent-net: #9ccf4f;
+  --accent-sys: #f0a63c;
+  --accent-tools: #b89cf0;
+
   /* Brushed metal, as a single reusable gradient. Bright on dark: the type
      reads as polished chrome catching an overhead light. */
   --metal: linear-gradient(
@@ -119,6 +131,13 @@ html[data-theme="light"] {
      1.9:1 and fails contrast outright. */
   --color-cream: #c62f3e;
   --color-signal: #0f7a4c;
+
+  /* Darkened hard for the blush page: the dark-theme values sit near 2:1 on
+     ivory, which fails outright. These clear 4.5:1 against --color-ink. */
+  --accent-dev: #0c6b7a;
+  --accent-net: #4f6f12;
+  --accent-sys: #9c5212;
+  --accent-tools: #6435b5;
 
   /* Light sources become a rose glow rather than a shadow. */
   --glow: 232 72 98;
@@ -235,6 +254,15 @@ html[data-theme="light"] .bg-cream {
     scroll-behavior: smooth;
     background-color: var(--color-ink);
     color-scheme: dark;
+
+    /* Framer Motion's useScroll defaults its container to
+       document.scrollingElement — which is <html>, and which is `static` by
+       default. Every scroll-linked effect on the page (the hero parallax,
+       each drifting ghost word) measures its offset against that container,
+       and a static one makes it warn that offsets may be wrong. Giving the
+       root a positioning context silences the cause rather than the symptom;
+       it changes nothing visually, since `inset` is never set on it. */
+    position: relative;
   }
 
   html[data-theme="light"] {
@@ -372,6 +400,41 @@ html[data-theme="light"] .bg-cream {
       background-position:
         -80% 0,
         0 0;
+    }
+  }
+
+  /* The caret on the typed hero line.
+
+     Sized in em so it tracks the type it sits beside, and given its own
+     blink rather than relying on the global reduced-motion clamp — that
+     clamp only forces durations to nothing, which would leave the caret
+     frozen at whichever half of the cycle it stopped on. Here it is
+     explicitly held visible instead. */
+  .type-caret {
+    display: inline-block;
+    width: 0.07em;
+    height: 0.95em;
+    margin-left: 0.1em;
+    background: currentColor;
+    vertical-align: -0.08em;
+    animation: type-caret 1.05s step-end infinite;
+  }
+
+  @keyframes type-caret {
+    0%,
+    49% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .type-caret {
+      animation: none;
+      opacity: 1;
     }
   }
 
@@ -789,3 +852,5 @@ html[data-theme="light"] .bg-cream {
     opacity: 1;
   }
 }
+
+

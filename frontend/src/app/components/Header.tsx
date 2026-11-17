@@ -12,6 +12,7 @@ import {
 import { useEffect, useRef } from "react";
 import { Container } from "./ui/Section";
 import { TextRoll } from "./ui/Motion";
+import TypeCycle from "./ui/TypeCycle";
 import { hero, profile } from "../../data/content";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -117,7 +118,7 @@ const Header: React.FC<{ portraitSrc?: string | null }> = ({ portraitSrc }) => {
       {/* ---- Layer 1: the word ---- */}
       <motion.div
         aria-hidden="true"
-        style={reduce ? undefined : { y: wordY, opacity: chromeFade }}
+        style={{ y: wordY, opacity: chromeFade }}
         className="pointer-events-none absolute inset-x-0 top-1/2 z-0 -translate-y-1/2"
       >
         <Container>
@@ -128,7 +129,7 @@ const Header: React.FC<{ portraitSrc?: string | null }> = ({ portraitSrc }) => {
                 fontSize: "clamp(3.25rem, 15.5vw, 15rem)",
                 lineHeight: 0.82,
               }}
-              initial={reduce ? false : { y: "115%" }}
+              initial={{ y: "115%" }}
               animate={{ y: "0%" }}
               transition={{ duration: 1.15, delay: 0.1, ease: EASE }}
             >
@@ -157,8 +158,8 @@ const Header: React.FC<{ portraitSrc?: string | null }> = ({ portraitSrc }) => {
       {/* ---- Layer 2: the portrait ---- */}
       {portraitSrc && (
         <motion.div
-          style={reduce ? undefined : { y: portraitY }}
-          initial={reduce ? false : { opacity: 0, scale: 1.05 }}
+          style={{ y: portraitY }}
+          initial={{ opacity: 0, scale: 1.05 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1.3, delay: 0.3, ease: EASE }}
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mx-auto h-[62vh] w-full max-w-[560px] sm:h-[68vh] md:h-[74vh]"
@@ -169,17 +170,19 @@ const Header: React.FC<{ portraitSrc?: string | null }> = ({ portraitSrc }) => {
           <motion.div
             data-portrait-follow
             className="absolute inset-0 origin-bottom will-change-transform"
-            style={
-              reduce
-                ? undefined
-                : {
-                    x: driftX,
-                    rotateX: tiltX,
-                    rotateY: tiltY,
-                    rotateZ: lean,
-                    transformPerspective: 1200,
-                  }
-            }
+            /* Applied unconditionally. Branching the style on `reduce` would
+               render a transform on the server (which cannot know the
+               preference) and none on the client, which is a hydration
+               mismatch. It is also unnecessary: the pointer listener above
+               bails out when motion is reduced, so these values simply stay
+               at rest and the transform resolves to nothing. */
+            style={{
+              x: driftX,
+              rotateX: tiltX,
+              rotateY: tiltY,
+              rotateZ: lean,
+              transformPerspective: 1200,
+            }}
           >
             <Image
               src={portraitSrc}
@@ -212,19 +215,19 @@ const Header: React.FC<{ portraitSrc?: string | null }> = ({ portraitSrc }) => {
 
         <div className="flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
           <motion.p
-            initial={reduce ? false : { opacity: 0, y: 18 }}
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.75, ease: EASE }}
             className="text-[clamp(1.25rem,3.4vw,2.25rem)] leading-none tracking-tight"
           >
-            <span className="font-semibold text-bone">{hero.roleLead} </span>
-            <span className="serif-accent text-bone/85">
-              {hero.roleAccent}
-            </span>
+            <TypeCycle
+              phrases={hero.roleCycle}
+              className="font-semibold text-bone"
+            />
           </motion.p>
 
           <motion.div
-            initial={reduce ? false : { opacity: 0, y: 18 }}
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.88, ease: EASE }}
             className="flex items-center gap-3"
@@ -240,7 +243,7 @@ const Header: React.FC<{ portraitSrc?: string | null }> = ({ portraitSrc }) => {
                 viewBox="0 0 24 24"
                 className="h-4 w-4"
                 aria-hidden="true"
-                animate={reduce ? undefined : { y: [0, 3, 0] }}
+                animate={{ y: [0, 3, 0] }}
                 transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
               >
                 <path

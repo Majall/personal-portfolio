@@ -2,7 +2,6 @@
 
 import {
   motion,
-  useReducedMotion,
   useScroll,
   useTransform,
   type MotionValue,
@@ -11,6 +10,20 @@ import { useRef, type ReactNode } from "react";
 
 /* ---------------------------------------------------------------------------
    Shared motion primitives.
+
+   IMPORTANT: none of these may branch their MARKUP on useReducedMotion.
+
+   The server cannot know a visitor's motion preference, so it always renders
+   the non-reduced branch. A component that returns a different tree when
+   reduced hands React two different trees to reconcile and hydration fails —
+   which is exactly what TextRoll used to do, rendering the label twice on the
+   server (the roll needs a duplicate) and once on the client.
+
+   Reduced motion is handled centrally instead, by <MotionConfig
+   reducedMotion="user"> in layout.tsx: Framer then refuses transform and
+   layout animations for those visitors while leaving opacity alone, and the
+   markup stays identical on both sides. CSS transitions and the marquee are
+   covered separately by the prefers-reduced-motion block in globals.css.
 
    Every one of these consults useReducedMotion and degrades to a plain,
    fully-visible, non-animated render. That matters here because the design
@@ -34,16 +47,12 @@ export function Reveal({
   className?: string;
   once?: boolean;
 }) {
-  const reduce = useReducedMotion();
-
-  if (reduce) return <div className={className}>{children}</div>;
-
   return (
     <motion.div
       className={className}
       initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once, margin: "-12% 0px -12% 0px" }}
+      viewport={{ once, margin: "0px 0px -12% 0px" }}
       transition={{ duration: 0.75, delay, ease: EASE }}
     >
       {children}
@@ -61,16 +70,12 @@ export function RevealGroup({
   className?: string;
   stagger?: number;
 }) {
-  const reduce = useReducedMotion();
-
-  if (reduce) return <div className={className}>{children}</div>;
-
   return (
     <motion.div
       className={className}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-10% 0px" }}
+      viewport={{ once: true, margin: "0px 0px -10% 0px" }}
       variants={{
         hidden: {},
         visible: { transition: { staggerChildren: stagger } },
@@ -90,10 +95,6 @@ export function RevealItem({
   className?: string;
   y?: number;
 }) {
-  const reduce = useReducedMotion();
-
-  if (reduce) return <div className={className}>{children}</div>;
-
   return (
     <motion.div
       className={className}
@@ -123,12 +124,7 @@ export function SplitHeading({
   wordClassName?: string;
   as?: "h1" | "h2" | "h3";
 }) {
-  const reduce = useReducedMotion();
   const words = text.split(" ");
-
-  if (reduce) {
-    return <Tag className={className}>{text}</Tag>;
-  }
 
   return (
     <Tag className={className}>
@@ -140,7 +136,7 @@ export function SplitHeading({
         className="inline"
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, margin: "-10% 0px" }}
+        viewport={{ once: true, margin: "0px 0px -10% 0px" }}
         variants={{
           hidden: {},
           visible: { transition: { staggerChildren: 0.08 } },
@@ -192,7 +188,6 @@ export function ChapterHeading({
   className?: string;
   as?: "h1" | "h2" | "h3";
 }) {
-  const reduce = useReducedMotion();
   const words = text.split(" ");
   const full = accent ? `${text} ${accent}` : text;
 
@@ -231,15 +226,6 @@ export function ChapterHeading({
     </>
   );
 
-  if (reduce) {
-    return (
-      <Tag className={className}>
-        <span className="display">{text}</span>
-        {accent ? <span className="serif-accent"> {accent}</span> : null}
-      </Tag>
-    );
-  }
-
   return (
     <Tag className={className}>
       <span className="sr-only">{full}</span>
@@ -248,7 +234,7 @@ export function ChapterHeading({
         className="inline"
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, margin: "-10% 0px" }}
+        viewport={{ once: true, margin: "0px 0px -10% 0px" }}
         variants={{
           hidden: {},
           visible: { transition: { staggerChildren: 0.08 } },
@@ -275,7 +261,6 @@ export function GhostWord({
   from?: number;
   to?: number;
 }) {
-  const reduce = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -289,7 +274,7 @@ export function GhostWord({
       aria-hidden="true"
       className={`pointer-events-none absolute select-none ${className ?? ""}`}
     >
-      <motion.div className="ghost-word" style={reduce ? undefined : { x }}>
+      <motion.div className="ghost-word" style={{ x }}>
         {text}
       </motion.div>
     </div>
@@ -307,10 +292,6 @@ export function TextRoll({
   label: string;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
-
-  if (reduce) return <span className={className}>{label}</span>;
-
   return (
     /* 1.4em rather than 1em: at 1em the clipping rectangle sits exactly on
        the baseline and shears the descenders off every g, p and y. The

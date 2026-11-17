@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { sendContact } from "../../services/contact.service";
 import { Section, SectionLabel, Container } from "./ui/Section";
 import { ChapterHeading, Reveal, TextRoll } from "./ui/Motion";
@@ -43,7 +43,6 @@ const Icon: React.FC<{ name: "whatsapp" | "linkedin" | "github" }> = ({
  * the reference exactly would have deleted working functionality.
  */
 const Contact: React.FC = () => {
-  const reduce = useReducedMotion();
   const [result, setResult] = useState<"" | "sending" | "success" | "error">("");
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -246,7 +245,7 @@ const Contact: React.FC = () => {
                   {result === "success" && (
                     <motion.span
                       key="ok"
-                      initial={reduce ? false : { opacity: 0, y: 6 }}
+                      initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.35, ease: EASE }}
@@ -258,7 +257,7 @@ const Contact: React.FC = () => {
                   {result === "error" && (
                     <motion.span
                       key="err"
-                      initial={reduce ? false : { opacity: 0, y: 6 }}
+                      initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.35, ease: EASE }}
