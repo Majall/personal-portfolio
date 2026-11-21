@@ -1,0 +1,248 @@
+"use client";
+
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { loader } from "../../data/content";
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+const CUT = [0.7, 0, 0.2, 1] as const;
+const STORAGE_KEY = "intro-played";
+
+/* ---------------------------------------------------------------------------
+   Blade-cut title reveal.
+
+   Black screen, a short held breath. A combat knife tears across the screen
+   in one stroke, leaving a white-hot cut line. The cut splits open and the
+   name is revealed inside it in chrome, with a flash and a hard hit. Light
+   runs along the letters, the title holds, and the overlay fades to the page.
+
+   The previous pendulum/knife version is kept beside this file as
+   IntroLoader.knife-pendulum.tsx.bak.
+--------------------------------------------------------------------------- */
+const BEAT = {
+  slash: 450, // knife crosses the screen
+  open: 820, // cut splits, name revealed, flash + hit
+  shine: 1500, // light runs along the letters
+  out: 3300, // hold ends; overlay fades
+  done: 3900,
+} as const;
+
+type Phase = "dark" | "slash" | "open" | "shine" | "out" | "done";
+const ORDER: Phase[] = ["dark", "slash", "open", "shine", "out", "done"];
+const atLeast = (phase: Phase, mark: Phase) =>
+  ORDER.indexOf(phase) >= ORDER.indexOf(mark);
+
+/* Whether this session has already seen the intro (see git history for the
+   full rationale): the server snapshot reports "played" so no loader markup is
+   rendered during hydration. */
+const neverChanges = () => () => {};
+const hasPlayedOnClient = () => {
+  try {
+    return sessionStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const hasPlayedOnServer = () => true;
+
+function Knife() {
+  return (
+    <svg viewBox="0 0 200 36" className="block h-full w-full" aria-hidden="true">
+      <defs>
+        <linearGradient id="intro-blade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="0.45" stopColor="#c9ccd1" />
+          <stop offset="0.55" stopColor="#7d828a" />
+          <stop offset="1" stopColor="#e4e6ea" />
+        </linearGradient>
+      </defs>
+      <rect x="4" y="11" width="52" height="14" rx="5" fill="#1b1b1d" stroke="#e8e6e1" strokeWidth="1.5" />
+      {[14, 24, 34, 44].map((x) => (
+        <line key={x} x1={x} y1="12" x2={x} y2="24" stroke="#e8e6e1" strokeOpacity="0.45" strokeWidth="1.5" />
+      ))}
+      <rect x="56" y="4" width="7" height="28" rx="2" fill="#e8e6e1" />
+      <path d="M63 10 L150 10 L160 6 L170 10 L198 17 L170 26 L63 26 Z" fill="url(#intro-blade)" />
+      <path d="M70 10 l5 -3 l5 3 l5 -3 l5 3 l5 -3 l5 3" fill="none" stroke="#c9ccd1" strokeWidth="1.2" />
+      <line x1="66" y1="18" x2="190" y2="18" stroke="#ffffff" strokeOpacity="0.55" strokeWidth="0.8" />
+    </svg>
+  );
+}
+
+export default function IntroLoader() {
+  const reduce = useReducedMotion();
+  const hasPlayed = useSyncExternalStore(neverChanges, hasPlayedOnClient, hasPlayedOnServer);
+  const [phase, setPhase] = useState<Phase>("dark");
+
+  const shouldPlay = !reduce && !hasPlayed;
+  const playing = shouldPlay && phase !== "done";
+
+  const finish = useCallback(() => {
+    setPhase("done");
+    try {
+      sessionStorage.setItem(STORAGE_KEY, "1");
+    } catch {
+      /* Storage unavailable: intro just won't be remembered. */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!shouldPlay) return;
+    const timers = [
+      setTimeout(() => setPhase("slash"), BEAT.slash),
+      setTimeout(() => setPhase("open"), BEAT.open),
+      setTimeout(() => setPhase("shine"), BEAT.shine),
+      setTimeout(() => setPhase("out"), BEAT.out),
+      setTimeout(finish, BEAT.done),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [shouldPlay, finish]);
+
+  /* Lift the pre-paint curtain set in layout.tsx. */
+  useEffect(() => {
+    if (playing || reduce || hasPlayedOnClient()) {
+      delete document.documentElement.dataset.intro;
+    }
+  }, [playing, reduce]);
+
+  /* Lock scrolling while the loader is up. */
+  useEffect(() => {
+    if (!playing) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [playing]);
+
+  /* Any key skips. Pointer skip is on the overlay. */
+  useEffect(() => {
+    if (!playing) return;
+    const onKey = () => finish();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [playing, finish]);
+
+  if (!playing) return null;
+
+  const opened = atLeast(phase, "open");
+
+  return (
+    <AnimatePresence>
+      {phase !== "out" && (
+        <motion.div
+          key="intro"
+          role="status"
+          aria-live="polite"
+          aria-label={loader.name}
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0, transition: { duration: 0.6, ease: EASE } }}
+          onPointerDown={finish}
+          className="fixed inset-0 z-[90] flex cursor-pointer items-center justify-center overflow-hidden bg-ink"
+        >
+          {/* Backlight that blooms when the cut opens. */}
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[60vmin] w-[110vmin] -translate-x-1/2 -translate-y-1/2 rounded-[50%]"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, rgb(var(--glow) / 0.2) 0%, rgb(var(--glow) / 0.05) 45%, transparent 72%)",
+            }}
+            initial={{ opacity: 0, scaleY: 0.05 }}
+            animate={opened ? { opacity: 0.9, scaleY: 1 } : { opacity: 0, scaleY: 0.05 }}
+            transition={{ duration: 1.1, ease: EASE }}
+          />
+
+          {/* Everything that takes the hit shakes together. */}
+          <motion.div
+            className="relative flex w-full items-center justify-center"
+            animate={
+              opened
+                ? { x: [0, -12, 10, -6, 4, -2, 0], y: [0, 6, -4, 3, -1, 0] }
+                : {}
+            }
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          >
+            {/* ---- The name, revealed through the cut ---- */}
+            <motion.p
+              aria-hidden="true"
+              className={`display text-display chrome-text relative px-4 ${
+                atLeast(phase, "shine") ? "chrome-sweep" : ""
+              }`}
+              initial={{ clipPath: "inset(50% -5% 50% -5%)", scale: 1.12, filter: "blur(6px)" }}
+              animate={
+                opened
+                  ? { clipPath: "inset(-10% -5% -10% -5%)", scale: 1, filter: "blur(0px)" }
+                  : {}
+              }
+              transition={{
+                clipPath: { duration: 0.55, ease: CUT },
+                scale: { duration: 2.4, ease: EASE },
+                filter: { duration: 0.5, ease: EASE },
+              }}
+            >
+              {loader.name}
+            </motion.p>
+
+            {/* ---- The cut line ---- */}
+            <motion.span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-0 top-1/2 block h-[3px] w-full origin-left bg-white"
+              style={{
+                rotate: -3,
+                boxShadow: "0 0 18px 4px rgb(255 255 255 / 0.75), 0 0 60px 10px rgb(var(--glow) / 0.5)",
+              }}
+              initial={{ scaleX: 0, opacity: 1 }}
+              animate={
+                opened
+                  ? { scaleX: 1, opacity: 0, scaleY: 6 }
+                  : atLeast(phase, "slash")
+                    ? { scaleX: 1, opacity: 1 }
+                    : { scaleX: 0, opacity: 1 }
+              }
+              transition={
+                opened
+                  ? { duration: 0.35, ease: "easeOut" }
+                  : { duration: 0.32, ease: CUT }
+              }
+            />
+
+            {/* ---- The knife, tearing across ---- */}
+            <motion.div
+              aria-hidden="true"
+              className="pointer-events-none absolute left-0 top-1/2"
+              style={{
+                width: "clamp(120px,18vw,280px)",
+                height: "clamp(22px,3.2vw,50px)",
+                marginTop: "calc(clamp(22px,3.2vw,50px) / -2)",
+                rotate: -3,
+              }}
+              initial={{ x: "-40vw", opacity: 0 }}
+              animate={
+                atLeast(phase, "slash")
+                  ? { x: "120vw", opacity: [0, 1, 1, 0], skewX: [-20, -20, -20, 0] }
+                  : { x: "-40vw", opacity: 0 }
+              }
+              transition={{ duration: 0.4, ease: CUT, times: [0, 0.1, 0.85, 1] }}
+            >
+              <Knife />
+            </motion.div>
+          </motion.div>
+
+          {/* White impact flash. */}
+          <AnimatePresence>
+            {opened && (
+              <motion.span
+                key="flash"
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 block bg-white"
+                initial={{ opacity: 0.45 }}
+                animate={{ opacity: 0 }}
+                transition={{ duration: 0.7, ease: "easeOut" }}
+              />
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

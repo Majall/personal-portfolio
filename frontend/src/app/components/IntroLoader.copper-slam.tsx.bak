@@ -1,0 +1,368 @@
+"use client";
+
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { loader } from "../../data/content";
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+const SLAM = [0.6, 0, 0.9, 0.4] as const; // accelerates into the hit
+const STORAGE_KEY = "intro-played";
+
+/* ---------------------------------------------------------------------------
+   Cinematic metal title card (Telugu mass-film style).
+
+   Dark red-black stage with drifting embers. The camera rushes past huge
+   copper slabs with sparks, the screen drops to black, then each letter of the
+   name slams in as a heavy 3D copper block — one hit per letter, each with a
+   jolt. A light sweep runs across the metal, the title holds, and the overlay
+   fades into the page.
+
+   Earlier versions are kept beside this file:
+     IntroLoader.knife-pendulum.tsx.bak, IntroLoader.blade-cut.tsx.bak
+--------------------------------------------------------------------------- */
+const BEAT = {
+  slabs: 150, // copper slabs rush past the camera
+  title: 1650, // letters start slamming in
+  shine: 3250, // light sweeps across the metal
+  out: 4700,
+  done: 5300,
+} as const;
+
+/** Seconds between one letter hitting and the next. */
+const LETTER_STEP = 0.2;
+const LETTER_DROP = 0.32;
+
+type Phase = "dark" | "slabs" | "title" | "shine" | "out" | "done";
+const ORDER: Phase[] = ["dark", "slabs", "title", "shine", "out", "done"];
+const atLeast = (phase: Phase, mark: Phase) =>
+  ORDER.indexOf(phase) >= ORDER.indexOf(mark);
+
+/* Session flag read as an external store; the server snapshot reports
+   "played" so hydration renders no loader markup. */
+const neverChanges = () => () => {};
+const hasPlayedOnClient = () => {
+  try {
+    return sessionStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const hasPlayedOnServer = () => true;
+
+/* Copper/rusted-metal face for the blocks and slabs. */
+const COPPER =
+  "radial-gradient(ellipse at 30% 20%, rgb(0 0 0 / 0.35) 0 6%, transparent 18%)," +
+  "radial-gradient(ellipse at 70% 65%, rgb(0 0 0 / 0.3) 0 5%, transparent 16%)," +
+  "linear-gradient(175deg, #ffd29a 0%, #e8913f 22%, #a9521c 48%, #e08a3a 62%, #7a3610 82%, #c86f2a 100%)";
+
+/* Stacked shadows give the face its extruded block depth. */
+const EXTRUDE = Array.from({ length: 9 }, (_, i) => {
+  const d = i + 1;
+  const shade = Math.max(20, 70 - i * 6);
+  return `${d * 0.6}px ${d}px 0 rgb(${shade} ${Math.round(shade * 0.42)} 10)`;
+})
+  .concat(["0 14px 28px rgb(0 0 0 / 0.85)"])
+  .join(",");
+
+/* Deterministic ember field (no Math.random, so render is stable). */
+const EMBERS = Array.from({ length: 34 }, (_, i) => {
+  const r = (n: number) => ((Math.sin(i * 12.9898 + n * 78.233) * 43758.5453) % 1 + 1) % 1;
+  return {
+    left: r(1) * 100,
+    top: 40 + r(2) * 70,
+    size: 2 + r(3) * 4,
+    rise: 25 + r(4) * 45,
+    drift: (r(5) - 0.5) * 12,
+    dur: 2.6 + r(6) * 2.8,
+    delay: r(7) * 2.5,
+    hot: r(8) > 0.55,
+  };
+});
+
+/* Giant slabs the camera rushes past in the opening. */
+const SLABS = [
+  { top: "-10%", rot: -22, from: "-70vw", to: "90vw", delay: 0, h: "60vh" },
+  { top: "35%", rot: 14, from: "100vw", to: "-80vw", delay: 0.35, h: "75vh" },
+  { top: "5%", rot: -8, from: "-80vw", to: "100vw", delay: 0.7, h: "90vh" },
+];
+
+export default function IntroLoader() {
+  const reduce = useReducedMotion();
+  const hasPlayed = useSyncExternalStore(neverChanges, hasPlayedOnClient, hasPlayedOnServer);
+  const [phase, setPhase] = useState<Phase>("dark");
+
+  const shouldPlay = !reduce && !hasPlayed;
+  const playing = shouldPlay && phase !== "done";
+
+  const finish = useCallback(() => {
+    setPhase("done");
+    try {
+      sessionStorage.setItem(STORAGE_KEY, "1");
+    } catch {
+      /* Storage unavailable: intro just won't be remembered. */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!shouldPlay) return;
+    const timers = [
+      setTimeout(() => setPhase("slabs"), BEAT.slabs),
+      setTimeout(() => setPhase("title"), BEAT.title),
+      setTimeout(() => setPhase("shine"), BEAT.shine),
+      setTimeout(() => setPhase("out"), BEAT.out),
+      setTimeout(finish, BEAT.done),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [shouldPlay, finish]);
+
+  /* Lift the pre-paint curtain set in layout.tsx. */
+  useEffect(() => {
+    if (playing || reduce || hasPlayedOnClient()) {
+      delete document.documentElement.dataset.intro;
+    }
+  }, [playing, reduce]);
+
+  /* Lock scrolling while the loader is up. */
+  useEffect(() => {
+    if (!playing) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [playing]);
+
+  /* Any key skips. Pointer skip is on the overlay. */
+  useEffect(() => {
+    if (!playing) return;
+    const onKey = () => finish();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [playing, finish]);
+
+  if (!playing) return null;
+
+  const letters = loader.name.split("");
+  const titled = atLeast(phase, "title");
+  /* One jolt per letter hit: offsets alternate so the stage kicks back and
+     forth like a camera taking each impact. */
+  const hitTimes = letters.map((_, i) => i * LETTER_STEP + LETTER_DROP);
+  const shakeDur = hitTimes[hitTimes.length - 1] + 0.25;
+
+  return (
+    <AnimatePresence>
+      {phase !== "out" && (
+        <motion.div
+          key="intro"
+          role="status"
+          aria-live="polite"
+          aria-label={loader.name}
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0, transition: { duration: 0.6, ease: EASE } }}
+          onPointerDown={finish}
+          className="fixed inset-0 z-[90] cursor-pointer overflow-hidden"
+          style={{ background: "#050202" }}
+        >
+          {/* Deep red ambient glow from the left, as in the reference. */}
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse 70% 90% at 0% 45%, rgb(150 30 10 / 0.55), transparent 65%), radial-gradient(ellipse 60% 50% at 50% 55%, rgb(120 40 10 / 0.25), transparent 70%)",
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: titled ? 1 : 0.7 }}
+            transition={{ duration: 1.2, ease: EASE }}
+          />
+
+          {/* Embers drifting upward. */}
+          {EMBERS.map((e, i) => (
+            <motion.span
+              key={i}
+              aria-hidden="true"
+              className="pointer-events-none absolute block rounded-full"
+              style={{
+                left: `${e.left}%`,
+                top: `${e.top}%`,
+                width: e.size,
+                height: e.size * (e.hot ? 1.8 : 1),
+                background: e.hot ? "#ffcf6b" : "#ff4a24",
+                boxShadow: `0 0 ${e.size * 3}px ${e.hot ? "#ffb347" : "#ff3a1a"}`,
+              }}
+              initial={{ opacity: 0, y: 0, x: 0 }}
+              animate={{
+                opacity: [0, 1, 0.6, 1, 0],
+                y: `-${e.rise}vh`,
+                x: `${e.drift}vw`,
+              }}
+              transition={{
+                duration: e.dur,
+                delay: e.delay,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+            />
+          ))}
+
+          {/* ---- Opening: copper slabs rushing past the camera ---- */}
+          <AnimatePresence>
+            {atLeast(phase, "slabs") && !titled && (
+              <motion.div
+                key="slabs"
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0"
+                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              >
+                {SLABS.map((s, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute left-0"
+                    style={{
+                      top: s.top,
+                      width: "85vw",
+                      height: s.h,
+                      background: COPPER,
+                      rotate: s.rot,
+                      boxShadow: "inset 0 0 0 3px rgb(255 210 150 / 0.35), 0 30px 80px rgb(0 0 0 / 0.9)",
+                      filter: "blur(3px) brightness(0.9)",
+                    }}
+                    initial={{ x: s.from, scale: 1.6, opacity: 0 }}
+                    animate={{ x: s.to, scale: 1.1, opacity: [0, 1, 1, 0.4] }}
+                    transition={{ duration: 0.9, delay: s.delay, ease: [0.4, 0, 0.6, 1] }}
+                  />
+                ))}
+                {/* Sparks scraping off the slabs. */}
+                {Array.from({ length: 14 }, (_, i) => (
+                  <motion.span
+                    key={`spark-${i}`}
+                    className="absolute block h-[2px] rounded-full bg-[#ffd9a0]"
+                    style={{
+                      left: `${30 + ((i * 37) % 40)}%`,
+                      top: `${35 + ((i * 23) % 30)}%`,
+                      width: 18 + (i % 4) * 10,
+                      rotate: -30 + ((i * 47) % 60),
+                      boxShadow: "0 0 8px #ffb347",
+                    }}
+                    initial={{ opacity: 0, x: 0, y: 0 }}
+                    animate={{
+                      opacity: [0, 1, 0],
+                      x: (i % 2 ? 1 : -1) * (60 + i * 8),
+                      y: 40 + i * 6,
+                    }}
+                    transition={{ duration: 0.5, delay: 0.3 + (i % 7) * 0.12, ease: "easeOut" }}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ---- The title ---- */}
+          <motion.div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ perspective: 900 }}
+            animate={
+              titled
+                ? {
+                    x: [0, ...hitTimes.flatMap((_, i) => [i % 2 ? 7 : -7, 0])],
+                    y: [0, ...hitTimes.flatMap(() => [5, 0])],
+                  }
+                : {}
+            }
+            transition={{
+              duration: shakeDur,
+              times: [
+                0,
+                ...hitTimes.flatMap((t) => [t / shakeDur, Math.min(1, (t + 0.12) / shakeDur)]),
+              ],
+              ease: "easeOut",
+            }}
+          >
+            <motion.p
+              aria-hidden="true"
+              className="display relative flex select-none text-display"
+              style={{ letterSpacing: "0.02em", transformStyle: "preserve-3d" }}
+              initial={{ scale: 1.08 }}
+              animate={titled ? { scale: 1 } : {}}
+              transition={{ duration: 3, ease: EASE }}
+            >
+              {letters.map((ch, i) => (
+                <motion.span
+                  key={i}
+                  className="relative inline-block"
+                  style={{ fontWeight: 900, marginRight: "0.04em" }}
+                  initial={{ opacity: 0, scale: 3.2, rotateX: 70, y: "-0.4em", filter: "blur(10px)" }}
+                  animate={
+                    titled
+                      ? { opacity: 1, scale: 1, rotateX: 0, y: 0, filter: "blur(0px)" }
+                      : {}
+                  }
+                  transition={{
+                    duration: LETTER_DROP,
+                    delay: i * LETTER_STEP,
+                    ease: SLAM,
+                  }}
+                >
+                  {/* Extruded back of the block. */}
+                  <span style={{ color: "#4a1f08", textShadow: EXTRUDE }}>{ch}</span>
+                  {/* Copper face. */}
+                  <span
+                    className="absolute inset-0"
+                    style={{
+                      background: COPPER,
+                      WebkitBackgroundClip: "text",
+                      backgroundClip: "text",
+                      color: "transparent",
+                    }}
+                  >
+                    {ch}
+                  </span>
+                  {/* Light sweep across the metal. */}
+                  {atLeast(phase, "shine") && (
+                    <motion.span
+                      className="absolute inset-0"
+                      style={{
+                        background:
+                          "linear-gradient(105deg, transparent 35%, rgb(255 245 220 / 0.95) 50%, transparent 65%)",
+                        backgroundSize: "300% 100%",
+                        WebkitBackgroundClip: "text",
+                        backgroundClip: "text",
+                        color: "transparent",
+                      }}
+                      initial={{ backgroundPosition: "100% 0" }}
+                      animate={{ backgroundPosition: "0% 0" }}
+                      transition={{ duration: 0.9, delay: i * 0.06, ease: "easeInOut" }}
+                    >
+                      {ch}
+                    </motion.span>
+                  )}
+                  {/* Impact flash on landing. */}
+                  {titled && (
+                    <motion.span
+                      className="pointer-events-none absolute left-1/2 top-1/2 block h-[1.6em] w-[1.6em] -translate-x-1/2 -translate-y-1/2 rounded-full"
+                      style={{
+                        background:
+                          "radial-gradient(circle, rgb(255 200 120 / 0.8), rgb(255 120 40 / 0.25) 40%, transparent 70%)",
+                      }}
+                      initial={{ opacity: 0, scale: 0.4 }}
+                      animate={{ opacity: [0, 1, 0], scale: [0.4, 1.3, 1.6] }}
+                      transition={{
+                        duration: 0.45,
+                        delay: i * LETTER_STEP + LETTER_DROP - 0.04,
+                        ease: "easeOut",
+                      }}
+                    />
+                  )}
+                </motion.span>
+              ))}
+            </motion.p>
+          </motion.div>
+
+          {/* Cinematic letterbox bars. */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[7vh] bg-black" />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[7vh] bg-black" />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
