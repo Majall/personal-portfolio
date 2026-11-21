@@ -324,12 +324,8 @@ const APPROACH = [
    in Z, so when a block turns in flight its crimson side really turns with
    it (a text-shadow extrusion is painted flat and cannot). Slices nearer the
    face are lit brighter, falling to plum-black at the back. */
-/* Every slice is a full text layer repainted each frame while the block
-   moves, so the count is the intro's main rendering cost: 16 slices held the
-   final title near 16fps on a mid-range CPU; 6 keep the same ~0.18em depth
-   with wider spacing. */
-const DEPTH = 6;
-const DEPTH_STEP = 0.03; // em per slice → ~0.18em deep
+const DEPTH = 16;
+const DEPTH_STEP = 0.011; // em per slice → ~0.18em deep
 const SLICES = Array.from({ length: DEPTH }, (_, k) => {
   const t = k / (DEPTH - 1);
   const mix = (a: number, b: number) => Math.round(a + (b - a) * t);
