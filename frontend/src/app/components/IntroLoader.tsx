@@ -30,8 +30,8 @@ const STORAGE_KEY = "intro-played";
      8.0  ACT 3: full name builds again, slower, under a slow camera drift
     11.8  fade to the page
 
-   In portrait the title is turned 90° so it runs down the screen as in the
-   reference; in landscape it reads left to right.
+   The title always reads left to right. In portrait (phones) it is sized
+   by the screen's width, so the full name fits without turning sideways.
 
    Earlier versions sit beside this file as *.tsx.bak.
 --------------------------------------------------------------------------- */
@@ -324,8 +324,12 @@ const APPROACH = [
    in Z, so when a block turns in flight its crimson side really turns with
    it (a text-shadow extrusion is painted flat and cannot). Slices nearer the
    face are lit brighter, falling to plum-black at the back. */
-const DEPTH = 16;
-const DEPTH_STEP = 0.011; // em per slice → ~0.18em deep
+/* Every slice is a full text layer repainted each frame while the block
+   moves, so the count is the intro's main rendering cost: 16 slices held the
+   final title near 16fps on a mid-range CPU; 6 keep the same ~0.18em depth
+   with wider spacing. */
+const DEPTH = 6;
+const DEPTH_STEP = 0.03; // em per slice → ~0.18em deep
 const SLICES = Array.from({ length: DEPTH }, (_, k) => {
   const t = k / (DEPTH - 1);
   const mix = (a: number, b: number) => Math.round(a + (b - a) * t);
@@ -495,7 +499,7 @@ type TitleProps = {
 function Title({ letters, delays, dur, size, drift }: TitleProps) {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
-      <div className="portrait:rotate-90">
+      <div className="max-w-full px-4">
         <motion.div
           initial={drift.from}
           animate={drift.to}
@@ -853,8 +857,14 @@ export default function IntroLoader() {
   const soundRef = useRef<IntroSound | null>(null);
   const startedAt = useRef(0);
   const [sound, setSound] = useState<SoundState>("pending");
+  /* Mirrors `sound` for the window key listener, which is bound once. */
+  const soundStateRef = useRef<SoundState>("pending");
+  useEffect(() => {
+    soundStateRef.current = sound;
+  }, [sound]);
   const soundBegan = useRef(false);
-  const elapsed = () => (performance.now() - startedAt.current) / 1000;
+  /* Stable (reads only refs), so callbacks can use it without deps. */
+  const elapsed = useCallback(() => (performance.now() - startedAt.current) / 1000, []);
 
   /* Create (and start preloading) the track on mount… */
   useEffect(() => {
@@ -905,13 +915,23 @@ export default function IntroLoader() {
     if (phase === "done") soundRef.current?.stop(0.15);
   }, [phase]);
 
+  /* Browsers only release audio inside a user gesture (a click or a key
+     press), so a blocked track is started from the visitor's first one and
+     joins the picture wherever it has got to. */
+  const unlockSound = useCallback(async () => {
+    const s = soundRef.current;
+    if (!s || soundStateRef.current !== "blocked") return;
+    soundStateRef.current = "on";
+    await s.ctx.resume().catch(() => {});
+    s.start(elapsed());
+    setSound("on");
+  }, [elapsed]);
+
   const onSoundButton = async () => {
     const s = soundRef.current;
     if (!s) return;
     if (sound === "blocked") {
-      await s.ctx.resume().catch(() => {});
-      s.start(elapsed());
-      setSound("on");
+      await unlockSound();
     } else if (sound === "on") {
       s.setMuted(true);
       setSound("muted");
@@ -938,17 +958,22 @@ export default function IntroLoader() {
     };
   }, [playing]);
 
-  /* Any key skips. Pointer skip is on the overlay. */
+  /* While sound is blocked, the first key turns it on; after that any key
+     skips. Escape always skips. Pointer handling is on the overlay. */
   useEffect(() => {
     if (!playing) return;
     const onKey = (e: KeyboardEvent) => {
       /* Enter/Space on the sound button toggles sound, not skip. */
       if ((e.target as HTMLElement | null)?.dataset?.introSound) return;
+      if (e.key !== "Escape" && soundStateRef.current === "blocked") {
+        void unlockSound();
+        return;
+      }
       finish();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [playing, finish]);
+  }, [playing, finish, unlockSound]);
 
   if (!playing) return null;
 
@@ -965,7 +990,14 @@ export default function IntroLoader() {
           aria-label={loader.name}
           initial={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.6, ease: EASE } }}
-          onPointerDown={finish}
+          /* While sound is blocked, the first tap turns it on instead of
+             skipping. It is handled on click, not pointerdown: on touch
+             screens a pointerdown does not count as a gesture that may
+             start audio. */
+          onPointerDown={() => {
+            if (soundStateRef.current !== "blocked") finish();
+          }}
+          onClick={() => void unlockSound()}
           className="fixed inset-0 z-[90] cursor-pointer overflow-hidden"
           /* A light grade on the whole frame: a touch more contrast and
              saturation, as a colourist would push a film. */
@@ -1006,7 +1038,7 @@ export default function IntroLoader() {
               letters={letters.slice(0, half)}
               delays={ACT1_DELAYS}
               dur={ACT1_DUR}
-              size="text-[min(18vw,30vh)] portrait:text-[min(15vh,34vw)]"
+              size="text-[min(18vw,30vh)] portrait:text-[min(20vw,15vh)]"
               drift={{ from: { scale: 1.12 }, to: { scale: 1.04 }, dur: 1.8 }}
             />
           )}
@@ -1024,7 +1056,7 @@ export default function IntroLoader() {
               letters={letters}
               delays={ACT3_DELAYS}
               dur={ACT3_DUR}
-              size="text-[min(14vw,24vh)] portrait:text-[min(12vh,28vw)]"
+              size="text-[min(14vw,24vh)] portrait:text-[min(15vw,12vh)]"
               drift={{ from: { scale: 1.08, x: "2%" }, to: { scale: 0.97, x: "-2%" }, dur: 4 }}
             />
           )}
@@ -1042,7 +1074,7 @@ export default function IntroLoader() {
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") finish();
             }}
-            className="absolute right-6 top-6 z-10 flex items-center gap-2 rounded-full border border-[#3a1a26] bg-[#0d070b]/70 px-4 py-2 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-[#f3eef0] backdrop-blur-sm transition-colors hover:border-[#c62f3e] hover:bg-[#140a10] focus-visible:outline-2 focus-visible:outline-[#c62f3e]"
+            className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6 flex items-center gap-2 rounded-full border border-[#3a1a26] bg-[#0d070b]/70 px-4 py-2 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-[#f3eef0] backdrop-blur-sm transition-colors hover:border-[#c62f3e] hover:bg-[#140a10] focus-visible:outline-2 focus-visible:outline-[#c62f3e]"
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.6, ease: EASE }}
@@ -1062,7 +1094,7 @@ export default function IntroLoader() {
               data-intro-sound="1"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onSoundButton}
-              className="absolute bottom-6 right-6 z-10 flex items-center gap-2 rounded-full border border-[#3a1a26] bg-[#0d070b]/70 px-4 py-2 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-[#f3eef0] backdrop-blur-sm transition-colors hover:border-[#c62f3e] hover:bg-[#140a10] focus-visible:outline-2 focus-visible:outline-[#c62f3e]"
+              className="absolute bottom-4 right-4 z-10 sm:bottom-6 sm:right-6 flex items-center gap-2 rounded-full border border-[#3a1a26] bg-[#0d070b]/70 px-4 py-2 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-[#f3eef0] backdrop-blur-sm transition-colors hover:border-[#c62f3e] hover:bg-[#140a10] focus-visible:outline-2 focus-visible:outline-[#c62f3e]"
               aria-label={sound === "on" ? "Mute intro sound" : "Play intro sound"}
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -1073,7 +1105,7 @@ export default function IntroLoader() {
                   <path d="m16 9 6 6m0-6-6 6" strokeLinecap="round" />
                 )}
               </svg>
-              {sound === "blocked" ? "Tap for sound" : sound === "on" ? "Sound on" : "Muted"}
+              {sound === "blocked" ? "Tap anywhere for sound" : sound === "on" ? "Sound on" : "Muted"}
             </button>
           )}
         </motion.div>
