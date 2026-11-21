@@ -84,9 +84,8 @@ function highlight(text: string, terms: string[]) {
  * sub-label and content but no section chrome, so this chapter keeps a single
  * heading and the page keeps a single About entry in the nav.
  *
- * Languages and strengths are kept below the journey. They are real content
- * with nowhere better to live, and they read as a quiet footnote to the
- * record above them rather than competing with it.
+ * Languages and strengths sit at the bottom of the left column, filling the
+ * space beside the journey card, which is taller than the intro on its own.
  */
 const About: React.FC<{ resumeHref?: string | null }> = ({ resumeHref }) => {
   const socials = [
@@ -178,16 +177,10 @@ const About: React.FC<{ resumeHref?: string | null }> = ({ resumeHref }) => {
           </div>
         </Reveal>
 
-          </div>
-
-          {/* ---- Journey (right column) ---- */}
-          <div className="lg:pt-1">
-            <Journey />
-          </div>
-        </div>
-
-        {/* ---- Languages & strengths ---- */}
-        <div className="mt-20 grid gap-12 border-t border-line pt-12 sm:mt-28 md:grid-cols-2 md:gap-16">
+        {/* ---- Languages & strengths ----
+            Kept in the left column so they fill the space beside the
+            (taller) journey card instead of trailing below it. */}
+        <div className="mt-14 grid gap-12 border-t border-line pt-10 sm:grid-cols-2 sm:gap-10">
           <Reveal>
             <h3 className="label text-muted">{languagesSection.label}</h3>
             <ul className="mt-5 space-y-4">
@@ -216,6 +209,14 @@ const About: React.FC<{ resumeHref?: string | null }> = ({ resumeHref }) => {
               ))}
             </ul>
           </Reveal>
+        </div>
+
+          </div>
+
+          {/* ---- Journey (right column) ---- */}
+          <div className="lg:pt-1">
+            <Journey />
+          </div>
         </div>
 
         {/* ---- Social links ---- */}

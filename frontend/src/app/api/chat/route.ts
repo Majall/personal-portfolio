@@ -1,19 +1,79 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { SYSTEM_PROMPT } from "../../../lib/chatPrompt";
 
 /* ---------------------------------------------------------------------------
    POST /api/chat — the portfolio chatbot.
 
    The browser sends the running conversation; this adds the system prompt and
-   the API key (neither of which ever reaches the client) and returns one
-   reply as `{ reply }`.
+   the API key (neither of which ever reaches the client) and streams the
+   reply back as plain text.
 
    Everything here that looks defensive is cost control: the endpoint is
    public, so each limit below caps what a stranger can spend on the key.
 --------------------------------------------------------------------------- */
 
-/** Overridable without a code change if the model is renamed or retired. */
-const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+/* Models to try, in order; overridable as a comma-separated list without a
+   code change. Lite models are used on purpose: on this key the full Flash
+   models queued for 40–70 s before the first word, the Lite ones answered in
+   1–3 s, and for short answers from a fixed fact sheet they are as good.
+   If one is overloaded, out of quota, retired or slow to start, the next one
+   answers instead. */
+const MODELS = (process.env.GEMINI_MODEL || "gemini-3.5-flash-lite,gemini-3.1-flash-lite")
+  .split(",")
+  .map((name) => name.trim())
+  .filter(Boolean);
+
+/* How long a model may take to produce its first words before the next one
+   is tried. The last model in the list is always waited for. */
+const FIRST_WORDS_TIMEOUT_MS = 8000;
+
+/* Short factual answers gain nothing from long reasoning, and thinking adds
+   to the wait. Not every model accepts every level, so a model that rejects
+   it is simply asked again without it. */
+const THINKING = { thinkingLevel: ThinkingLevel.MINIMAL };
+
+/* One client per warm instance rather than one per request. */
+let ai: GoogleGenAI | undefined;
+
+type Contents = { role: string; parts: { text: string }[] }[];
+
+/** Starts a reply and waits for its first words, so a model that fails or
+    stalls can be swapped out before anything is sent to the visitor. */
+async function startReply(model: string, contents: Contents, isLast: boolean) {
+  const attempt = async (thinking: boolean) => {
+    const abort = new AbortController();
+    const timer = isLast ? undefined : setTimeout(() => abort.abort(), FIRST_WORDS_TIMEOUT_MS);
+    try {
+      const stream = await ai!.models.generateContentStream({
+        model,
+        contents,
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+          ...(thinking && { thinkingConfig: THINKING }),
+          /* Brevity is enforced by the prompt; this is only a ceiling. */
+          maxOutputTokens: 400,
+          temperature: 0.6,
+          abortSignal: abort.signal,
+        },
+      });
+      let first = await stream.next();
+      while (!first.done && !first.value.text) first = await stream.next();
+      if (first.done) throw new Error(`${model} returned no text`);
+      return { first: first.value.text!, rest: stream };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  try {
+    return await attempt(true);
+  } catch (error) {
+    /* 400 is the model refusing the request as written, which here can only
+       be the thinking setting; anything else is passed on to the caller. */
+    if ((error as { status?: number }).status === 400) return attempt(false);
+    throw error;
+  }
+}
 
 const MAX_MESSAGES = 20; // what a request may carry
 const HISTORY_SENT = 10; // what is actually forwarded to the model
@@ -106,35 +166,52 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      /* Gemini calls the assistant "model" and wraps text in parts. */
-      contents: messages.map((message) => ({
-        role: message.role === "assistant" ? "model" : "user",
-        parts: [{ text: message.content }],
-      })),
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        /* Brevity is enforced by the prompt. This is only a ceiling, and it
-           is generous because on thinking models the budget is shared with
-           the model's reasoning: too low and the reply comes back cut off
-           or empty. */
-        maxOutputTokens: 1000,
-        temperature: 0.6,
-      },
-    });
+  ai ??= new GoogleGenAI({ apiKey });
+  /* Gemini calls the assistant "model" and wraps text in parts. */
+  const contents: Contents = messages.map((message) => ({
+    role: message.role === "assistant" ? "model" : "user",
+    parts: [{ text: message.content }],
+  }));
 
-    const reply = response.text?.trim();
-    if (!reply) {
-      console.error("[chat] empty reply", response.candidates?.[0]?.finishReason);
-      return Response.json({ error: "No reply" }, { status: 502 });
+  let reply: Awaited<ReturnType<typeof startReply>> | undefined;
+  for (const [index, model] of MODELS.entries()) {
+    try {
+      reply = await startReply(model, contents, index === MODELS.length - 1);
+      break;
+    } catch (error) {
+      console.error(`[chat] ${model} failed, trying the next model`, error);
     }
-
-    return Response.json({ reply });
-  } catch (error) {
-    console.error("[chat]", error);
-    return Response.json({ error: "Something went wrong" }, { status: 500 });
   }
+  if (!reply) {
+    return Response.json({ error: "Something went wrong" }, { status: 502 });
+  }
+  const { first, rest } = reply;
+
+  /* The reply is sent as plain text while it is written, so the first words
+     reach the visitor almost at once. Errors before this point are JSON with
+     a status; once streaming has begun the status is already 200, so a
+     failure just ends the text early and the client handles a short or empty
+     reply. */
+  const encoder = new TextEncoder();
+  const replyStream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        controller.enqueue(encoder.encode(first));
+        for await (const chunk of rest) {
+          if (chunk.text) controller.enqueue(encoder.encode(chunk.text));
+        }
+      } catch (error) {
+        console.error("[chat] stream", error);
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(replyStream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
 }

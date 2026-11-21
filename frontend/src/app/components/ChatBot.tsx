@@ -211,8 +211,17 @@ export default function ChatBot() {
   const recognitionRef = useRef<Recognition | null>(null);
   const heardRef = useRef("");
   const greetedRef = useRef(false);
+  /* The reply being streamed, so clearing or closing can cut it off. */
+  const abortRef = useRef<AbortController | null>(null);
+  /* Replies are spoken a sentence at a time, as they arrive. Each stop bumps
+     the generation, so callbacks from cancelled sentences are ignored, and
+     the pending count says when the last queued sentence has finished. */
+  const voiceGenRef = useRef(0);
+  const pendingRef = useRef(0);
 
   function stopSpeaking() {
+    voiceGenRef.current++;
+    pendingRef.current = 0;
     if (speechAvailable) window.speechSynthesis.cancel();
     setSpeaking(false);
   }
@@ -224,21 +233,33 @@ export default function ChatBot() {
     setListening(false);
   }
 
-  function speak(text: string) {
+  /* `queue` adds to what is already being said instead of replacing it. */
+  function speak(text: string, queue = false) {
     if (!speechAvailable) return;
     const spoken = toSpeech(text);
     if (!spoken) return;
 
-    window.speechSynthesis.cancel();
+    if (!queue) stopSpeaking();
+    const gen = voiceGenRef.current;
     const utterance = new SpeechSynthesisUtterance(spoken);
     const voice = pickDeepVoice();
     if (voice) utterance.voice = voice;
     utterance.lang = voice?.lang ?? VOICE_LANG;
     utterance.pitch = VOICE_PITCH;
     utterance.rate = VOICE_RATE;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
+
+    const done = () => {
+      if (gen !== voiceGenRef.current) return;
+      pendingRef.current -= 1;
+      if (pendingRef.current <= 0) setSpeaking(false);
+    };
+    utterance.onstart = () => {
+      if (gen === voiceGenRef.current) setSpeaking(true);
+    };
+    utterance.onend = done;
+    utterance.onerror = done;
+
+    pendingRef.current += 1;
     window.speechSynthesis.speak(utterance);
   }
 
@@ -262,6 +283,7 @@ export default function ChatBot() {
   }
 
   function clearChat() {
+    abortRef.current?.abort();
     stopListening();
     stopSpeaking();
     setMessages([]);
@@ -290,29 +312,73 @@ export default function ChatBot() {
     setError("");
     setLoading(true);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const voiced = viaVoice || speakReplies;
+    const gen = voiceGenRef.current;
+    let reply = "";
+    let spokenUpTo = 0;
+
+    /* Speak every complete sentence not yet spoken. While the reply is still
+       arriving, a sentence counts as complete once punctuation is followed by
+       a space; `final` flushes whatever is left. Pressing "Stop talking"
+       bumps the generation, which silences the rest of this reply. */
+    const speakNew = (final: boolean) => {
+      if (!voiced || gen !== voiceGenRef.current) return;
+      const rest = reply.slice(spokenUpTo);
+      let end = rest.length;
+      if (!final) {
+        const boundaries = [...rest.matchAll(/[.!?](?=\s)/g)];
+        if (!boundaries.length) return;
+        end = boundaries[boundaries.length - 1].index + 1;
+      }
+      speak(rest.slice(0, end), true);
+      spokenUpTo += end;
+    };
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next.slice(-HISTORY_SENT) }),
+        signal: controller.signal,
       });
 
       if (res.status === 429) {
         setError(chat.rateLimitedLabel);
         return;
       }
-
-      const data = await res.json().catch(() => null);
-      if (!res.ok || typeof data?.reply !== "string") {
+      if (!res.ok || !res.body) {
         setError(chat.errorLabel);
         return;
       }
 
-      setMessages([...next, { role: "assistant", content: data.reply }]);
-      if (viaVoice || speakReplies) speak(data.reply);
+      /* Show the reply as it is written. The typing dots stay until the
+         first words arrive. */
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        reply += decoder.decode(value, { stream: true });
+        if (reply.trim()) {
+          setMessages([...next, { role: "assistant", content: reply }]);
+          speakNew(false);
+        }
+      }
+      reply += decoder.decode();
+
+      if (!reply.trim()) {
+        setError(chat.errorLabel);
+        return;
+      }
+      setMessages([...next, { role: "assistant", content: reply.trim() }]);
+      speakNew(true);
     } catch {
-      setError(chat.errorLabel);
+      /* Clearing or closing aborts on purpose; that is not an error. */
+      if (!controller.signal.aborted) setError(chat.errorLabel);
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setLoading(false);
       inputRef.current?.focus();
     }
@@ -413,6 +479,7 @@ export default function ChatBot() {
   useEffect(() => {
     if ("speechSynthesis" in window) window.speechSynthesis.getVoices();
     return () => {
+      abortRef.current?.abort();
       recognitionRef.current?.abort();
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     };
@@ -605,7 +672,7 @@ export default function ChatBot() {
                 ),
               )}
 
-              {loading && (
+              {loading && messages[messages.length - 1]?.role === "user" && (
                 <div>
                   {assistantTag}
                   <p className={`${bubble} inline-flex items-center gap-1.5 border border-line bg-surface/70 py-4`}>
