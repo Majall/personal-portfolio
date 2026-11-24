@@ -39,14 +39,15 @@ function resolvePublicAsset(value: string): string | null {
    contact form still posts to /api/contact from the client. */
 export default function Page() {
   const resumeHref = resolvePublicAsset(profile.resume);
+  const resumeFullStackHref = resolvePublicAsset(profile.resumeFullStack);
   const portraitSrc = resolvePublicAsset(profile.portrait);
 
   return (
     <>
-      <NavBar resumeHref={resumeHref} />
+      <NavBar resumeHref={resumeHref} resumeFullStackHref={resumeFullStackHref} />
       <main id="main">
         <Header portraitSrc={portraitSrc} />
-        <About resumeHref={resumeHref} />
+        <About resumeHref={resumeHref} resumeFullStackHref={resumeFullStackHref} />
         <Services />
         <Toolkit />
         <Labs />

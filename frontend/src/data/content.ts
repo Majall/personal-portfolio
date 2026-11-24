@@ -30,6 +30,8 @@ export interface Profile {
   linkedin: string;
   /** Served from /public. page.tsx checks it exists before linking to it. */
   resume: string;
+  /** Developer-focused résumé, same rules as `resume`. */
+  resumeFullStack: string;
   availability: string;
   /** Remote image — the hostname is allow-listed in next.config.ts. */
   profilePic: string;
@@ -52,6 +54,7 @@ export const profile: Profile = {
   github: "https://github.com/Majall",
   linkedin: "https://www.linkedin.com/in/Majaal_MJ",
   resume: "/Majaal_Resume.pdf",
+  resumeFullStack: "/Majaal_Resume_FullStack.pdf",
   availability:
     "Available for work: shift work, night shifts and on-call. Open to relocating to Colombo.",
   profilePic:
@@ -183,6 +186,7 @@ export const about = {
 
   ghostWord: "About",
   resumeLabel: "Download résumé",
+  resumeFullStackLabel: "Full Stack résumé",
   availabilityLabel: "Availability",
 };
 
@@ -971,6 +975,7 @@ export const ui = {
   elsewhereLabel: "Elsewhere",
   talkCta: "Let's talk",
   resumeLabel: "Resume",
+  resumeFullStackLabel: "Full Stack Resume",
   portraitMissing: "Portrait missing",
   noImage: "No image",
   themeLabel: "Theme",

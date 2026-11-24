@@ -87,7 +87,10 @@ function highlight(text: string, terms: string[]) {
  * Languages and strengths sit at the bottom of the left column, filling the
  * space beside the journey card, which is taller than the intro on its own.
  */
-const About: React.FC<{ resumeHref?: string | null }> = ({ resumeHref }) => {
+const About: React.FC<{
+  resumeHref?: string | null;
+  resumeFullStackHref?: string | null;
+}> = ({ resumeHref, resumeFullStackHref }) => {
   const socials = [
     { name: "github" as const, href: profile.github, label: "GitHub" },
     { name: "linkedin" as const, href: profile.linkedin, label: "LinkedIn" },
@@ -172,6 +175,18 @@ const About: React.FC<{ resumeHref?: string | null }> = ({ resumeHref }) => {
                 className="group rounded-full bg-bone px-6 py-3 label text-ink transition-opacity hover:opacity-85"
               >
                 <TextRoll label={about.resumeLabel} />
+              </a>
+            )}
+
+            {/* Outlined so it reads as the secondary résumé next to the filled one. */}
+            {resumeFullStackHref && (
+              <a
+                href={resumeFullStackHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group rounded-full border border-line px-6 py-3 label text-bone transition-colors duration-300 hover:border-bone"
+              >
+                <TextRoll label={about.resumeFullStackLabel} />
               </a>
             )}
           </div>

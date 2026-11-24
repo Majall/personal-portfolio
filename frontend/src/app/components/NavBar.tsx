@@ -17,7 +17,10 @@ import { nav, profile, ui } from "../../data/content";
  * one are both "intersecting" for most of their scroll and the highlight
  * flickers between them.
  */
-const NavBar: React.FC<{ resumeHref?: string | null }> = ({ resumeHref }) => {
+const NavBar: React.FC<{
+  resumeHref?: string | null;
+  resumeFullStackHref?: string | null;
+}> = ({ resumeHref, resumeFullStackHref }) => {
   const reduce = useReducedMotion();
   const [active, setActive] = useState(nav[0]?.id ?? "home");
   const [scrolled, setScrolled] = useState(false);
@@ -240,6 +243,18 @@ const NavBar: React.FC<{ resumeHref?: string | null }> = ({ resumeHref }) => {
                   className="mt-10 self-start rounded-full border border-line px-6 py-3 text-nav uppercase text-bone"
                 >
                   {ui.resumeLabel}
+                </a>
+              )}
+
+              {resumeFullStackHref && (
+                <a
+                  href={resumeFullStackHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className={`${resumeHref ? "mt-3" : "mt-10"} self-start rounded-full border border-line px-6 py-3 text-nav uppercase text-bone`}
+                >
+                  {ui.resumeFullStackLabel}
                 </a>
               )}
             </nav>
