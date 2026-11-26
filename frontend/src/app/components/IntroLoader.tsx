@@ -114,6 +114,64 @@ const hasPlayedOnServer = () => true;
 const rnd = (i: number, n: number) =>
   (((Math.sin(i * 12.9898 + n * 78.233) * 43758.5453) % 1) + 1) % 1;
 
+/* ------------------------------------------------------------ smoothness -- */
+
+/* framer-motion runs `x`, `scale`, `rotate`… on the main thread, restyling
+   every frame; a changing scale then makes Chrome re-rasterise the big metal
+   slabs and the title's 3D slices each frame — the stutter. Only a whole
+   `transform` is handed to the compositor (GPU). `gpu()` rewrites those
+   shorthands into one transform string, in framer's own order (translate,
+   scale, rotate, rotateX/Y/Z), so the motion on screen is identical. */
+const TF_ORDER = [
+  ["x", "translateX", "px"],
+  ["y", "translateY", "px"],
+  ["scale", "scale", ""],
+  ["rotate", "rotate", "deg"],
+  ["rotateX", "rotateX", "deg"],
+  ["rotateY", "rotateY", "deg"],
+  ["rotateZ", "rotateZ", "deg"],
+] as const;
+type TfKey = (typeof TF_ORDER)[number][0];
+type TfVal = string | number;
+
+const tfPart = (fn: string, unit: string, v: TfVal | undefined, key: TfKey) => {
+  const value = v ?? (key === "scale" ? 1 : 0);
+  return `${fn}(${typeof value === "number" ? `${value}${unit}` : value})`;
+};
+
+function gpu(
+  from: TargetAndTransition = {},
+  to: TargetAndTransition = {},
+): { initial: TargetAndTransition; animate: TargetAndTransition } {
+  const a = from as Record<string, unknown>;
+  const b = to as Record<string, unknown>;
+  const used = TF_ORDER.filter(([k]) => k in a || k in b);
+  if (!used.length) return { initial: from, animate: to };
+
+  const strip = (o: Record<string, unknown>) => {
+    const rest = { ...o };
+    for (const [k] of TF_ORDER) delete rest[k];
+    return rest;
+  };
+  /* Keyframe arrays in `to` (e.g. the star) map frame by frame. */
+  const frames = Math.max(1, ...used.map(([k]) => (Array.isArray(b[k]) ? (b[k] as TfVal[]).length : 1)));
+  const build = (o: Record<string, unknown>, i?: number) =>
+    used
+      .map(([k, fn, unit]) => {
+        const v = o[k];
+        return tfPart(fn, unit, (Array.isArray(v) ? v[i ?? 0] : v) as TfVal | undefined, k);
+      })
+      .join(" ");
+
+  return {
+    initial: { ...strip(a), transform: build(a) } as TargetAndTransition,
+    animate: {
+      ...strip(b),
+      transform: frames > 1 ? Array.from({ length: frames }, (_, i) => build(b, i)) : build(b),
+    } as TargetAndTransition,
+  };
+}
+
 /* ------------------------------------------------------------ materials -- */
 
 const PATINA =
@@ -163,8 +221,7 @@ function Slab({ poly, box, tone = "crimson", initial, animate, transition, sheen
     <motion.div
       className="absolute"
       style={box}
-      initial={initial}
-      animate={animate}
+      {...gpu(initial, animate)}
       transition={transition}
     >
       <div className="absolute inset-0" style={{ clipPath: clip, background: BEVEL }} />
@@ -347,8 +404,10 @@ function Block({ ch, delay, dur, i }: { ch: string; delay: number; dur: number; 
     <motion.span
       className="relative inline-block"
       style={{ transformStyle: "preserve-3d", marginRight: "0.05em" }}
-      initial={{ opacity: 0, ...APPROACH[i % APPROACH.length] }}
-      animate={{ opacity: 1, x: 0, y: 0, scale: 1, rotateY: 0, rotateX: 0, rotateZ: 0 }}
+      {...gpu(
+        { opacity: 0, ...APPROACH[i % APPROACH.length] },
+        { opacity: 1, x: 0, y: 0, scale: 1, rotateY: 0, rotateX: 0, rotateZ: 0 },
+      )}
       transition={{ delay, duration: dur, ease: GLIDE, opacity: { delay, duration: 0.1 } }}
     >
       {/* The extruded body, back to front. The deepest slice carries the
@@ -496,11 +555,7 @@ function Title({ letters, delays, dur, size, drift }: TitleProps) {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       <div className="max-w-full px-4">
-        <motion.div
-          initial={drift.from}
-          animate={drift.to}
-          transition={{ duration: drift.dur, ease: "linear" }}
-        >
+        <motion.div {...gpu(drift.from, drift.to)} transition={{ duration: drift.dur, ease: "linear" }}>
           <p
             aria-hidden="true"
             className={`display flex select-none leading-none ${size}`}
@@ -525,8 +580,7 @@ function ShotGrind() {
   return (
     <motion.div
       className="absolute inset-0"
-      initial={{ scale: 1.15, rotate: 0 }}
-      animate={{ scale: 1.32, rotate: -5 }}
+      {...gpu({ scale: 1.15, rotate: 0 }, { scale: 1.32, rotate: -5 })}
       transition={{ duration: 1.1, ease: "linear" }}
     >
       <Slab
@@ -556,8 +610,7 @@ function ShotBlades() {
   return (
     <motion.div
       className="absolute inset-0"
-      initial={{ scale: 1 }}
-      animate={{ scale: 1.08 }}
+      {...gpu({ scale: 1 }, { scale: 1.08 })}
       transition={{ duration: 0.45, ease: "linear" }}
     >
       <Dust n={70} seed={2} />
@@ -586,8 +639,7 @@ function ShotSlice() {
   return (
     <motion.div
       className="absolute inset-0"
-      initial={{ scale: 1.05 }}
-      animate={{ scale: 1.14 }}
+      {...gpu({ scale: 1.05 }, { scale: 1.14 })}
       transition={{ duration: 0.75, ease: "linear" }}
     >
       <Slab
@@ -623,8 +675,7 @@ function ShotShards() {
   return (
     <motion.div
       className="absolute inset-0"
-      initial={{ scale: 1, rotate: 0 }}
-      animate={{ scale: 1.1, rotate: 3 }}
+      {...gpu({ scale: 1, rotate: 0 }, { scale: 1.1, rotate: 3 })}
       transition={{ duration: 1.2, ease: "linear" }}
     >
       <Slab
@@ -652,8 +703,7 @@ function ShotShards() {
           poly={shard}
           box={{ left: p.l, top: p.t, width: p.s, height: p.s }}
           tone={i % 2 ? "bright" : "crimson"}
-          initial={{ rotate: 0, y: "0vh" }}
-          animate={{ rotate: p.r, y: "3vh" }}
+          {...gpu({ rotate: 0, y: "0vh" }, { rotate: p.r, y: "3vh" })}
           transition={{ duration: 1.2, ease: "linear" }}
         />
       ))}
@@ -667,8 +717,7 @@ function ShotFan() {
   return (
     <motion.div
       className="absolute inset-0"
-      initial={{ rotate: -6, scale: 1.1 }}
-      animate={{ rotate: 4, scale: 1.18 }}
+      {...gpu({ rotate: -6, scale: 1.1 }, { rotate: 4, scale: 1.18 })}
       transition={{ duration: 0.6, ease: "linear" }}
     >
       <div className="absolute" style={{ left: "50%", top: "105%" }}>
@@ -684,8 +733,7 @@ function ShotFan() {
               transformOrigin: "50% 100%",
             }}
             tone={i % 3 === 0 ? "bright" : i % 3 === 1 ? "crimson" : "dark"}
-            initial={{ rotate: (i - 2.5) * 3 }}
-            animate={{ rotate: (i - 2.5) * 13 }}
+            {...gpu({ rotate: (i - 2.5) * 3 }, { rotate: (i - 2.5) * 13 })}
             transition={{ duration: 0.6, ease: OUT }}
             sheen={0.1 + i * 0.04}
           />
@@ -701,8 +749,7 @@ function ShotCross() {
   return (
     <motion.div
       className="absolute inset-0"
-      initial={{ scale: 1.05 }}
-      animate={{ scale: 1.15 }}
+      {...gpu({ scale: 1.05 }, { scale: 1.15 })}
       transition={{ duration: 0.65, ease: "linear" }}
     >
       <Slab
@@ -751,13 +798,15 @@ function ShotStar() {
       />
       <motion.div
         className="relative h-0 w-0"
-        initial={{ scale: 3, rotate: -60, opacity: 0, filter: "blur(12px)" }}
-        animate={{
-          scale: [3, 0.55, 1.4, 5.5],
-          rotate: [-60, 0, 20, 55],
-          opacity: [0, 1, 1, 1],
-          filter: ["blur(12px)", "blur(0px)", "blur(0px)", "blur(5px)"],
-        }}
+        {...gpu(
+          { scale: 3, rotate: -60, opacity: 0, filter: "blur(12px)" },
+          {
+            scale: [3, 0.55, 1.4, 5.5],
+            rotate: [-60, 0, 20, 55],
+            opacity: [0, 1, 1, 1],
+            filter: ["blur(12px)", "blur(0px)", "blur(0px)", "blur(5px)"],
+          },
+        )}
         transition={{ duration: 0.8, times: [0, 0.3, 0.6, 1], ease: "easeInOut" }}
       >
         {Array.from({ length: 6 }, (_, i) => (
