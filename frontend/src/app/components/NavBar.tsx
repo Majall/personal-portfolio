@@ -143,6 +143,7 @@ const NavBar: React.FC<{
                 href={resumeHref}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-goo
                 className="rounded-full border border-line px-4 py-2 text-nav uppercase text-bone transition-colors duration-300 hover:border-bone"
               >
                 {ui.resumeLabel}
@@ -240,6 +241,7 @@ const NavBar: React.FC<{
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setMenuOpen(false)}
+                  data-goo
                   className="mt-10 self-start rounded-full border border-line px-6 py-3 text-nav uppercase text-bone"
                 >
                   {ui.resumeLabel}
@@ -252,6 +254,7 @@ const NavBar: React.FC<{
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setMenuOpen(false)}
+                  data-goo
                   className={`${resumeHref ? "mt-3" : "mt-10"} self-start rounded-full border border-line px-6 py-3 text-nav uppercase text-bone`}
                 >
                   {ui.resumeFullStackLabel}

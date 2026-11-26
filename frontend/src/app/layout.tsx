@@ -10,6 +10,7 @@ import IntroLoader from "./components/IntroLoader";
 import SmoothScroll from "./components/SmoothScroll";
 import MotionProvider from "./components/ui/Motion.config";
 import ChatBot from "./components/ChatBot";
+import GooCursor from "./components/GooCursor";
 import { meta, ui } from "../data/content";
 
 /* Applied before first paint, so a visitor who chose light never sees a dark
@@ -104,6 +105,8 @@ export default function RootLayout({
           {children}
         </MotionProvider>
         <ChatBot />
+        {/* Turns every [data-goo] button to tar under a glove cursor. */}
+        <GooCursor />
 
         {/* Film grain sits above the page and below the loader. */}
         <div className="grain" aria-hidden="true" />

@@ -537,6 +537,7 @@ const Game: React.FC = () => {
           <button
             type="button"
             onClick={() => setLines(draft)}
+            data-goo
             className="group shrink-0 rounded-full bg-bone px-6 py-3.5 label text-ink transition-opacity hover:opacity-85"
           >
             <TextRoll label={game.rasterizeLabel} />

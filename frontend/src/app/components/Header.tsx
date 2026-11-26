@@ -259,6 +259,7 @@ const Header: React.FC<{ portraitSrc?: string | null }> = ({ portraitSrc }) => {
 
             <a
               href={hero.contactCta.href}
+              data-goo
               className="group rounded-full border border-line px-7 py-3.5 text-sm text-bone transition-colors duration-300 hover:border-bone hover:bg-bone hover:text-ink"
             >
               <TextRoll label={hero.contactCta.label} />

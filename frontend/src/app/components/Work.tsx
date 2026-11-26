@@ -44,6 +44,7 @@ const Work: React.FC = () => {
                 href={profile.github}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-goo
                 className="group inline-flex items-center gap-2 rounded-full bg-bone px-6 py-3.5 label text-ink transition-opacity hover:opacity-85"
               >
                 <TextRoll label={projectsSection.browseLabel} />
@@ -54,6 +55,7 @@ const Work: React.FC = () => {
                 href={profile.whatsapp}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-goo
                 className="group inline-flex items-center gap-2 rounded-full border border-line px-6 py-3.5 label text-bone transition-colors hover:border-bone"
               >
                 <TextRoll label={projectsSection.messageLabel} />
@@ -140,6 +142,7 @@ const Work: React.FC = () => {
                         href={project.liveUrl}
                         target="_blank"
                         rel="noopener noreferrer"
+                        data-goo
                         className="group inline-flex items-center gap-2 rounded-full bg-bone px-5 py-2.5 label text-ink transition-opacity hover:opacity-85"
                       >
                         <TextRoll label={projectsSection.liveLabel} />
@@ -151,6 +154,7 @@ const Work: React.FC = () => {
                       href={project.githubUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      data-goo
                       className="group inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 label text-bone transition-colors hover:border-bone"
                     >
                       <TextRoll label={projectsSection.codeLabel} />

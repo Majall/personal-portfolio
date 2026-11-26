@@ -121,6 +121,7 @@ const Contact: React.FC = () => {
                   href={profile.whatsapp}
                   target="_blank"
                   rel="noopener noreferrer"
+                  data-goo
                   className="group inline-flex items-center gap-2.5 rounded-full bg-bone px-7 py-3.5 text-sm text-ink transition-opacity hover:opacity-85"
                 >
                   <TextRoll label={contact.whatsappLabel} />
@@ -129,6 +130,7 @@ const Contact: React.FC = () => {
 
                 <a
                   href={`mailto:${profile.email}`}
+                  data-goo
                   className="group inline-flex items-center gap-2.5 rounded-full border border-line px-7 py-3.5 text-sm text-bone transition-colors hover:border-bone"
                 >
                   <TextRoll label={contact.emailLabel} />
@@ -228,6 +230,7 @@ const Contact: React.FC = () => {
               <button
                 type="submit"
                 disabled={result === "sending"}
+                data-goo
                 className="group rounded-full bg-bone px-7 py-3.5 label text-ink transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <TextRoll

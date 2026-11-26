@@ -172,6 +172,7 @@ const About: React.FC<{
                 href={resumeHref}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-goo
                 className="group rounded-full bg-bone px-6 py-3 label text-ink transition-opacity hover:opacity-85"
               >
                 <TextRoll label={about.resumeLabel} />
@@ -184,6 +185,7 @@ const About: React.FC<{
                 href={resumeFullStackHref}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-goo
                 className="group rounded-full border border-line px-6 py-3 label text-bone transition-colors duration-300 hover:border-bone"
               >
                 <TextRoll label={about.resumeFullStackLabel} />
